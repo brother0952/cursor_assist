@@ -1,0 +1,11 @@
+{
+    "server": {
+        "host": "localhostsdf",
+        "port": 8080,
+        "debug": "False"
+    },
+    "database": {
+        "type": "sqlite",
+        "name": "app.db"
+    }
+}
