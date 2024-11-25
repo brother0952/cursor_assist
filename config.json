@@ -1,0 +1,13 @@
+{
+    "server": {
+        "host": "sdfsdf",
+        "port": 0,
+        "debug": false
+    },
+    "database": {
+        "type": "mysql",
+        "name": "xxx",
+        "user": "",
+        "password": ""
+    }
+}

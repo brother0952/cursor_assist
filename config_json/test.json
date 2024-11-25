@@ -1,0 +1,13 @@
+{
+    "server": {
+        "host": "localhost",
+        "port": 8080,
+        "debug": true
+    },
+    "database": {
+        "type": "mysql",
+        "name": "myapp",
+        "user": "root",
+        "password": "123456"
+    }
+} 

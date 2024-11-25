@@ -1,0 +1,20 @@
+{
+    "server": {
+        "host": "localhost",
+        "port": 8080,
+        "debug": true
+    },
+    "database": {
+        "type": "mysql",
+        "name": "myapp",
+        "user": "root",
+        "password": "123456",
+        "port": 3306
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "app.log",
+        "rotate": true,
+        "max_size": 1024
+    }
+} 
