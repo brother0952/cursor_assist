@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from ellipse_data import EllipseSet, ellipse_data
+from ellipse_data import EllipseSet, ellipse_sets
 
 # 设置画布大小
 canvas_width = 1000
@@ -10,7 +10,12 @@ drawing_area_y = 200
 drawing_area_width = 320
 drawing_area_height = 80
 
-def draw_frame():
+# 移动限制和初始值
+MOVE_MIN = -15
+MOVE_MAX = 15
+move_count = 0  # 初始位置为0，向左为负，向右为正
+
+def draw_frame(move_count):
     # 创建黑色画布
     frame = np.zeros((canvas_height, canvas_width, 3), dtype=np.uint8)
     
@@ -21,32 +26,55 @@ def draw_frame():
                  (255, 255, 255), 
                  1)
     
-    # 绘制所有椭圆
+    # 根据move_count选择对应的椭圆组
+    current_set_index = move_count + 15  # 将-15到+15映射到0到30
+    current_set = ellipse_sets[current_set_index]
+    
+    # 绘制5个椭圆
+    centers = [current_set.center1, current_set.center2, current_set.center3, 
+              current_set.center4, current_set.center5]
+    axes = [current_set.axes1, current_set.axes2, current_set.axes3, 
+            current_set.axes4, current_set.axes5]
+    
     for i in range(5):
         cv2.ellipse(frame, 
-                   (int(ellipse_data.centers[i][0]), int(ellipse_data.centers[i][1])),
-                   ellipse_data.axes[i],
+                   (int(centers[i][0]), int(centers[i][1])),
+                   (axes[i][0], axes[i][1]),  # 只使用长轴和短轴
                    0,  # 角度
                    0,  # 起始角
                    360,  # 结束角
-                   ellipse_data.colors[i],
+                   (0, 0, 255),  # 红色
                    1)  # 线宽
     
     return frame
 
 def main():
+    global move_count
+    
     while True:
-        frame = draw_frame()
+        frame = draw_frame(move_count)
         cv2.imshow('Ellipse Animation', frame)
         
         key = cv2.waitKey(30)
         if key == ord('q'):  # 按q退出
             break
         elif key == ord('a') or key == 81:  # 按a或左箭头键
-            # 移动除了最大椭圆以外的所有椭圆
-            for i in range(4):  # 只移动前4个椭圆
-                x, y = ellipse_data.centers[i]
-                ellipse_data.centers[i] = (x - 3, y)
+            if move_count > MOVE_MIN:  # 检查是否达到最左边界
+                move_count -= 1
+                current_set = ellipse_sets[move_count + 15]
+                # 更新前4个椭圆的位置
+                for i in range(4):
+                    x, y = getattr(current_set, f'center{i+1}')
+                    setattr(current_set, f'center{i+1}', (x - 3, y))
+                
+        elif key == ord('d') or key == 83:  # 按d或右箭头键
+            if move_count < MOVE_MAX:  # 检查是否达到最右边界
+                move_count += 1
+                current_set = ellipse_sets[move_count + 15]
+                # 更新前4个椭圆的位置
+                for i in range(4):
+                    x, y = getattr(current_set, f'center{i+1}')
+                    setattr(current_set, f'center{i+1}', (x + 3, y))
     
     cv2.destroyAllWindows()
 
