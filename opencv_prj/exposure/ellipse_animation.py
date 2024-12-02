@@ -15,6 +15,30 @@ MOVE_MIN = -15
 MOVE_MAX = 15
 move_count = 0  # 初始位置为0，向左为负，向右为正
 
+# 椭圆的初始中心坐标
+BASE_CENTER_X = 460
+BASE_CENTER_Y = 240
+
+
+def special_ellipse(canvas, center:tuple, axesx_left, axesx_right,axesy, color):
+    cv2.ellipse(canvas, 
+                center, 
+                (axesx_right, axesy), 
+                180,  # 角度
+                90,  # 起始角
+                270,  # 结束角
+                color, 
+                -1)  # 填充
+    
+    cv2.ellipse(canvas, 
+                center, 
+                (axesx_left, axesy), 
+                0, 
+                90, 
+                270, 
+                color, 
+                -1)
+
 def draw_frame(move_count):
     # 创建黑色画布
     frame = np.zeros((canvas_height, canvas_width, 3), dtype=np.uint8)
@@ -37,9 +61,13 @@ def draw_frame(move_count):
             current_set.axes4, current_set.axes5]
     
     for i in range(5):
+        # 计算实际绘制位置 = 基准位置 + 相对位置
+        actual_x = BASE_CENTER_X + centers[i][0]
+        actual_y = BASE_CENTER_Y + centers[i][1]
+        
         cv2.ellipse(frame, 
-                   (int(centers[i][0]), int(centers[i][1])),
-                   (axes[i][0], axes[i][1]),  # 只使用长轴和短轴
+                   (int(actual_x), int(actual_y)),
+                   (axes[i][0], axes[i][1]),  # 长短轴
                    0,  # 角度
                    0,  # 起始角
                    360,  # 结束角
@@ -62,7 +90,7 @@ def main():
             if move_count > MOVE_MIN:  # 检查是否达到最左边界
                 move_count -= 1
                 current_set = ellipse_sets[move_count + 15]
-                # 更新前4个椭圆的位置
+                # 更新前4个椭圆的相对位置
                 for i in range(4):
                     x, y = getattr(current_set, f'center{i+1}')
                     setattr(current_set, f'center{i+1}', (x - 3, y))
@@ -71,7 +99,7 @@ def main():
             if move_count < MOVE_MAX:  # 检查是否达到最右边界
                 move_count += 1
                 current_set = ellipse_sets[move_count + 15]
-                # 更新前4个椭圆的位置
+                # 更新前4个椭圆的相对位置
                 for i in range(4):
                     x, y = getattr(current_set, f'center{i+1}')
                     setattr(current_set, f'center{i+1}', (x + 3, y))
