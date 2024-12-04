@@ -49,49 +49,71 @@ def draw_frame(move_count):
     # 创建黑色画布
     frame = np.zeros((canvas_height, canvas_width, 3), dtype=np.uint8)
     
-    # 绘制绘图区域边框（浅白色填充）
-    cv2.rectangle(frame, 
-                 (drawing_area_x, drawing_area_y), 
-                 (drawing_area_x + drawing_area_width, drawing_area_y + drawing_area_height), 
-                 (30, 30, 30),  # 浅白色填充
-                 -1)  # 填充
-    
-    # 绘制边框线条
-    cv2.rectangle(frame, 
-                 (drawing_area_x, drawing_area_y), 
-                 (drawing_area_x + drawing_area_width, drawing_area_y + drawing_area_height), 
-                 (255, 255, 255),  # 白色边框
-                 1)
+    # 创建灰度图层
+    gray_layer = np.zeros((canvas_height, canvas_width), dtype=np.uint8)
     
     # 根据move_count选择对应的椭圆组
-    current_set_index = move_count + 15  # 将-15到+15映射到0到30
+    current_set_index = move_count + 15
     current_set = ellipse_sets[current_set_index]
     
-    # 绘制5个椭圆
+    # 获取5个椭圆的参数
     centers = [current_set.center1, current_set.center2, current_set.center3, 
               current_set.center4, current_set.center5]
     axes = [current_set.axes1, current_set.axes2, current_set.axes3, 
             current_set.axes4, current_set.axes5]
     
-    # 浅绿色 (B, G, R)
-    light_green = (50, 200, 50)
+    # 创建y, x网格
+    y, x = np.ogrid[:canvas_height, :canvas_width]
     
+    # 创建高度场
+    height_field = np.zeros_like(gray_layer, dtype=float)
+    
+    # 创建最外层椭圆的mask
+    outer_mask = np.zeros_like(gray_layer)
+    actual_x = BASE_CENTER_X + centers[4][0]
+    actual_y = BASE_CENTER_Y + centers[4][1]
+    cv2.ellipse(outer_mask,
+                (int(actual_x), int(actual_y)),
+                (axes[4][0], axes[4][1]),
+                0, 0, 360,
+                1,
+                -1)
+    
+    # 设置每个椭圆边界的亮度值
+    boundary_values = [200, 180, 130, 10, 3]  # 从内到外的边界亮度值
+    
+    # 从内到外叠加每个椭圆的贡献
     for i in range(5):
-        # 计算实际绘制位置 = 基准位置 + 相对位置
         actual_x = BASE_CENTER_X + centers[i][0]
         actual_y = BASE_CENTER_Y + centers[i][1]
         
-        # 最外层椭圆（索引4）使用更粗的线条
-        line_thickness = 2 if i == 4 else 1
+        # 归一化坐标到椭圆坐标系
+        x_norm = (x - actual_x) / axes[i][0]
+        y_norm = (y - actual_y) / axes[i][1]
         
-        cv2.ellipse(frame, 
-                   (int(actual_x), int(actual_y)),
-                   (axes[i][0], axes[i][1]),  # 长短轴
-                   0,  # 角度
-                   0,  # 起始角
-                   360,  # 结束角
-                   light_green,  # 浅绿色
-                   line_thickness)  # 线宽
+        # 计算到中心的归一化距离
+        dist = np.sqrt(x_norm * x_norm + y_norm * y_norm)
+        
+        # 创建高斯形状的贡献
+        contribution = np.exp(-dist * dist * 2)
+        contribution = contribution * (255 - boundary_values[i]) + boundary_values[i]
+        
+        # 叠加到高度场
+        height_field = np.maximum(height_field, contribution)
+    
+    # 只保留最外层椭圆内部的区域
+    height_field = height_field * outer_mask
+    gray_layer = height_field.astype(np.uint8)
+    
+    # 将灰度图转换为BGR格式
+    frame = cv2.cvtColor(gray_layer, cv2.COLOR_GRAY2BGR)
+    
+    # 绘制绘图区域边框
+    cv2.rectangle(frame, 
+                 (drawing_area_x, drawing_area_y), 
+                 (drawing_area_x + drawing_area_width, drawing_area_y + drawing_area_height), 
+                 (255, 255, 255),
+                 1)
     
     # 添加状态信息
     cv2.putText(frame, 
