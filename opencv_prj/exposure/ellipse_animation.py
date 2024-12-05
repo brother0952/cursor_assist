@@ -26,84 +26,115 @@ last_move_time = 0
 MOVE_INTERVAL = 100  # 移动间隔(ms)
 move_direction = -1  # -1表示向左移动，1表示向右移动
 
-def special_ellipse(canvas, center:tuple, axesx_left, axesx_right,axesy, color):
-    cv2.ellipse(canvas, 
-                center, 
-                (axesx_right, axesy), 
-                180,  # 角度
-                90,  # 起始角
-                270,  # 结束角
-                color, 
-                -1)  # 填充
+def create_irregular_radial_gradient(width, height, ellipse_params):
+    """
+    创建不规则椭圆形径向渐变图像
+    """
+    # 创建坐标网格
+    y, x = np.ogrid[:height, :width]
     
-    cv2.ellipse(canvas, 
-                center, 
-                (axesx_left, axesy), 
-                0, 
-                90, 
-                270, 
-                color, 
-                -1)
-
-def draw_frame(move_count):
-    # 创建黑色画布
-    frame = np.zeros((canvas_height, canvas_width, 3), dtype=np.uint8)
-    
-    # 创建灰度图层
-    gray_layer = np.zeros((canvas_height, canvas_width), dtype=np.uint8)
-    
-    # 根据move_count选择对应的椭圆组
-    current_set_index = move_count + 15
-    current_set = ellipse_sets[current_set_index]
-    
-    # 获取5个椭圆的参数
-    centers = [current_set.center1, current_set.center2, current_set.center3, 
-              current_set.center4, current_set.center5]
-    axes = [current_set.axes1, current_set.axes2, current_set.axes3, 
-            current_set.axes4, current_set.axes5]
-    
-    # 创建y, x网格
-    y, x = np.ogrid[:canvas_height, :canvas_width]
-    
-    # 创建高度场
-    height_field = np.zeros_like(gray_layer, dtype=float)
+    # 创建输出图像
+    height_field = np.zeros((height, width), dtype=float)
     
     # 创建最外层椭圆的mask
-    outer_mask = np.zeros_like(gray_layer)
-    actual_x = BASE_CENTER_X + centers[4][0]
-    actual_y = BASE_CENTER_Y + centers[4][1]
-    cv2.ellipse(outer_mask,
-                (int(actual_x), int(actual_y)),
-                (axes[4][0], axes[4][1]),
-                0, 0, 360,
-                1,
-                -1)
+    outer_mask = np.zeros((height, width), dtype=np.uint8)
     
-    # 设置每个椭圆边界的亮度值
-    boundary_values = [200, 180, 130, 10, 3]  # 从内到外的边界亮度值
-    
-    # 从内到外叠加每个椭圆的贡献
-    for i in range(5):
-        actual_x = BASE_CENTER_X + centers[i][0]
-        actual_y = BASE_CENTER_Y + centers[i][1]
+    # 从内到外处理每个椭圆
+    for params in ellipse_params:
+        center_x = params['center'][0]
+        center_y = params['center'][1]
         
-        # 归一化坐标到椭圆坐标系
-        x_norm = (x - actual_x) / axes[i][0]
-        y_norm = (y - actual_y) / axes[i][1]
+        # 分别计算左右两边到中心的距离
+        x_dist = x - center_x
+        y_dist = y - center_y
+        
+        # 根据点在椭圆左右两侧选择不同的x轴半径
+        x_radius = np.where(x_dist < 0, 
+                           params['axes_left'], 
+                           params['axes_right'])
+        
+        # 计算归一化距离
+        x_norm = x_dist / x_radius
+        y_norm = y_dist / params['axes_y']
         
         # 计算到中心的归一化距离
         dist = np.sqrt(x_norm * x_norm + y_norm * y_norm)
         
         # 创建高斯形状的贡献
         contribution = np.exp(-dist * dist * 2)
-        contribution = contribution * (255 - boundary_values[i]) + boundary_values[i]
+        contribution = contribution * params['value']
         
-        # 叠加到高度场
+        # 更新高度场
         height_field = np.maximum(height_field, contribution)
+        
+        # 如果是最外层椭圆，创建mask
+        if params == ellipse_params[-1]:
+            mask = (dist <= 1).astype(np.uint8)
+            outer_mask = mask
     
-    # 只保留最外层椭圆内部的区域
+    # 应用外层椭圆mask
     height_field = height_field * outer_mask
-    gray_layer = height_field.astype(np.uint8)
+    
+    return height_field.astype(np.uint8)
+
+def draw_frame(move_count):
+    # 创建黑色画布
+    frame = np.zeros((canvas_height, canvas_width, 3), dtype=np.uint8)
+    
+    # 根据move_count选择对应的椭圆组
+    current_set_index = move_count + 15
+    current_set = ellipse_sets[current_set_index]
+    
+    # 构建椭圆参数列表
+    ellipse_params = [
+        {
+            'center': (BASE_CENTER_X + current_set.center1[0], 
+                      BASE_CENTER_Y + current_set.center1[1]),
+            'axes_left': current_set.axes1[0],
+            'axes_right': current_set.axes1[0],
+            'axes_y': current_set.axes1[1],
+            'value': 200
+        },
+        {
+            'center': (BASE_CENTER_X + current_set.center2[0], 
+                      BASE_CENTER_Y + current_set.center2[1]),
+            'axes_left': current_set.axes2[0],
+            'axes_right': current_set.axes2[0],
+            'axes_y': current_set.axes2[1],
+            'value': 180
+        },
+        {
+            'center': (BASE_CENTER_X + current_set.center3[0], 
+                      BASE_CENTER_Y + current_set.center3[1]),
+            'axes_left': current_set.axes3[0],
+            'axes_right': current_set.axes3[0],
+            'axes_y': current_set.axes3[1],
+            'value': 130
+        },
+        {
+            'center': (BASE_CENTER_X + current_set.center4[0], 
+                      BASE_CENTER_Y + current_set.center4[1]),
+            'axes_left': current_set.axes4[0],
+            'axes_right': current_set.axes4[0],
+            'axes_y': current_set.axes4[1],
+            'value': 10
+        },
+        {
+            'center': (BASE_CENTER_X + current_set.center5[0], 
+                      BASE_CENTER_Y + current_set.center5[1]),
+            'axes_left': current_set.axes5[0],
+            'axes_right': current_set.axes5[0],
+            'axes_y': current_set.axes5[1],
+            'value': 3
+        }
+    ]
+    
+    # 创建灰度渐变图像
+    gray_layer = create_irregular_radial_gradient(
+        canvas_width, 
+        canvas_height, 
+        ellipse_params
+    )
     
     # 将灰度图转换为BGR格式
     frame = cv2.cvtColor(gray_layer, cv2.COLOR_GRAY2BGR)
@@ -144,7 +175,7 @@ def draw_frame(move_count):
         "Q           : Quit"
     ]
     
-    y_pos = 700  # 起始y坐标
+    y_pos = 700
     for instruction in instructions:
         cv2.putText(frame, 
                     instruction, 
@@ -160,19 +191,18 @@ def draw_frame(move_count):
 def handle_auto_move():
     global move_count, move_direction, last_move_time
     
-    current_time = int(time.time() * 1000)  # 获取当前时间(ms)
+    current_time = int(time.time() * 1000)
     if current_time - last_move_time >= MOVE_INTERVAL:
-        # 时间间隔达到，执行移动
-        if move_direction == -1:  # 向左移动
+        if move_direction == -1:
             if move_count > MOVE_MIN:
                 move_count -= 1
             else:
-                move_direction = 1  # 达到左边界，改变方向
-        else:  # 向右移动
+                move_direction = 1
+        else:
             if move_count < MOVE_MAX:
                 move_count += 1
             else:
-                move_direction = -1  # 达到右边界，改变方向
+                move_direction = -1
         
         last_move_time = current_time
 
@@ -183,25 +213,24 @@ def main():
         frame = draw_frame(move_count)
         cv2.imshow('Ellipse Animation', frame)
         
-        # 如果在自动移动模式，处理自动移动
         if auto_move:
             handle_auto_move()
         
-        key = cv2.waitKey(1)  # 减小等待时间以使动画更流畅
+        key = cv2.waitKey(1)
         
-        if key == ord('q'):  # 按q退出
+        if key == ord('q'):
             break
-        elif key == ord('a') or key == 81:  # 按a或左箭头键
+        elif key == ord('a') or key == 81:
             if not auto_move and move_count > MOVE_MIN:
                 move_count -= 1
-        elif key == ord('d') or key == 83:  # 按d或右箭头键
+        elif key == ord('d') or key == 83:
             if not auto_move and move_count < MOVE_MAX:
                 move_count += 1
-        elif key == ord('n'):  # 按n开启自动移动模式
+        elif key == ord('n'):
             auto_move = True
-            move_direction = -1  # 开始时向左移动
-            move_count = 0  # 从中心开始
-        elif key == ord('m'):  # 按m关闭自动移动模式
+            move_direction = -1
+            move_count = 0
+        elif key == ord('m'):
             auto_move = False
     
     cv2.destroyAllWindows()
