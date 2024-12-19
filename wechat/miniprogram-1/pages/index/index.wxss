@@ -22,12 +22,13 @@ page {
 }
 
 .number-input {
-  width: 100%;
-  height: 80rpx;
-  border: 2rpx solid #ddd;
-  border-radius: 8rpx;
-  padding: 0 20rpx;
-  font-size: 28rpx;
+  width: 90%; 
+  max-width: 600rpx;
+  margin: 20rpx;
+  padding: 10rpx;
+  border: 1px solid #ccc;
+  border-radius: 5rpx;
+  text-align: left;
 }
 
 .date-section {
@@ -213,4 +214,9 @@ page {
 /* 修改节假日样式 */
 .holiday {
   background-color: #FFA500;  /* 橙色表示节假日 */
+}
+
+.remaining-amount {
+  color: #ff0000; 
+  font-weight: bold;
 }

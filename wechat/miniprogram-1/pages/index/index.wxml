@@ -1,5 +1,5 @@
 <!--index.wxml-->
-<navigation-bar title="Good day" back="{{false}}" color="black" background="#FFF"></navigation-bar>
+<navigation-bar title="吃饭啦" back="{{false}}" color="black" background="#FFF"></navigation-bar>
 <scroll-view class="scrollarea" scroll-y type="list">
   <view class="container">
     <view class="input-section">
@@ -12,7 +12,7 @@
         <text>11元餐：{{plan.meals11}}次</text>
         <text>15元餐：{{plan.meals15}}次</text>
         <text>总餐数：{{plan.totalMeals}}次</text>
-        <text>剩余金额：{{plan.remaining}}元</text>
+        <text class="remaining-amount">剩余金额：{{plan.remaining}}元</text>
       </view>
     </view>
     

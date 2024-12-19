@@ -42,8 +42,9 @@ Page({
     ],
     todayIndex: null, // 今天在meals数组中的索引
     remainingWorkdays: 0, // 到下一个结算日的工作日数量
-    useFakeTime: 15,
-    debug: true // 调试开关，设置为false以屏蔽调试输出
+    debug: false, // 调试开关，设置为false以屏蔽调试输出
+    useCustomTime: false,  // 是否使用自定义时间
+    customTime: 13,       // 自定义时间（小时）
   },
 
   onLoad() {
@@ -54,14 +55,7 @@ Page({
   // 初始化消费计划数组
   initMealsArray() {
     const today = new Date()
-    // if (this.data.useFakeTime)
-    // {
-    //   currentHour = this.data.useFakeTime}
-    // else{
-    // }
-    
-    // const currentHour = today.getHours()
-    const currentHour = 15
+    const currentHour = this.getCurrentHour()
     
     // 计算起始日期（上一个21号）
     let startDate = new Date()
@@ -128,6 +122,8 @@ Page({
     }
     
     this.setData({ meals, todayIndex, remainingWorkdays: workdayCount })
+    this.resetMealsArray()
+    this.updateCalendarDisplay()
     return { startDate, endDate, meals }
   },
 
@@ -149,12 +145,8 @@ Page({
   onBalanceInput(e) {
     const balance = Number(e.detail.value)
     this.setData({ balance })
-    
-    // 获取当前时间
-    
-    // const currentHour = new Date().getHours()
-    const currentHour = 14
-    console.log('当前时间:', currentHour, '时')
+    const currentHour = this.getCurrentHour()
+    // console.log('当前时间:', currentHour, '时')
     // console.log('当前输入金额:', balance)
     
     // 每次输入金额后重新初始化meals数组
@@ -265,56 +257,40 @@ Page({
   updateMealsWithPlan(plan) {
     let remainingMeals15 = plan.meals15
     let remainingMeals11 = plan.meals11
+    const meals = [...this.data.meals]
     
-    // 第一轮：优先安排所有上午的餐食
-    const meals = this.data.meals.map(day => {
-      // 如果是过去的日期、今天已过时段或节假日，保持不变
-      if (day[0] === -1 || day[0] === -2) {
-        return [...day]
-      }
-      
-      const newDay = [day[0], day[1]] // 保持原有状态
-      
-      // 只处理未过期的时段，且还有餐数可分配
-      if (newDay[0] === 0 && (remainingMeals15 > 0 || remainingMeals11 > 0)) {
-        if (remainingMeals15 > 0) {
-          newDay[0] = 15
-          remainingMeals15--
-        } else if (remainingMeals11 > 0) {
-          newDay[0] = 11
-          remainingMeals11--
+    // 优先安排所有11元餐
+    for (let i = this.data.todayIndex; i < meals.length && remainingMeals11 > 0; i++) {
+        // 跳过不可用的日期（节假日等）
+        if (meals[i][0] === -2) continue
+        
+        // 上午时段
+        if (meals[i][0] === 0) {
+            meals[i][0] = 11
+            remainingMeals11--
         }
-      }
-      
-      return newDay
-    })
-
-    // 第二轮：安排下午的餐食
-    meals.forEach(day => {
-      if (day[0] === -1 || day[0] === -2) {
-        return
-      }
-      
-      // 只处理未过期的时段，且还有餐数可分配
-      if (day[1] === 0 && (remainingMeals15 > 0 || remainingMeals11 > 0)) {
-        if (remainingMeals15 > 0) {
-          day[1] = 15
-          remainingMeals15--
-        } else if (remainingMeals11 > 0) {
-          day[1] = 11
-          remainingMeals11--
+        
+        // 下午时段
+        if (meals[i][1] === 0 && remainingMeals11 > 0) {
+            meals[i][1] = 11
+            remainingMeals11--
         }
-      }
-    })
+    }
     
-    // console.log('更新后消费计划:', {
-    //   meals,
-    //   计划15元餐: plan.meals15,
-    //   计划11元餐: plan.meals11,
-    //   剩余15元餐: remainingMeals15,
-    //   剩余11元餐: remainingMeals11
-    // })
-
+    // 然后安排15元餐
+    for (let i = this.data.todayIndex; i < meals.length && remainingMeals15 > 0; i++) {
+        if (meals[i][0] === -2) continue
+        
+        if (meals[i][0] === 0) {
+            meals[i][0] = 15
+            remainingMeals15--
+        }
+        
+        if (meals[i][1] === 0 && remainingMeals15 > 0) {
+            meals[i][1] = 15
+            remainingMeals15--
+        }
+    }
     this.setData({ meals })
     this.updateCalendarDisplay()
   },
@@ -348,7 +324,6 @@ Page({
       // 根据消费计划数组的值设置显示状态
       newDay.morning = this.getMealStatus(mealDay[0])
       newDay.afternoon = this.getMealStatus(mealDay[1])
-      
       // 调试输出
       if(this.data.debug) {
         console.log('日期映射:', {
@@ -382,7 +357,7 @@ Page({
 
   initCalendar() {
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    today.setHours(this.getCurrentHour(), 0, 0, 0)
 
     // 设置当前月份（显示本月）
     this.setData({
@@ -483,5 +458,13 @@ Page({
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
+  },
+
+  // 新增获取当前时间的方法
+  getCurrentHour() {
+    if (this.data.useCustomTime) {
+      return this.data.customTime;
+    }
+    return new Date().getHours();
   }
 })
