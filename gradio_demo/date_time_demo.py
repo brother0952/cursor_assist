@@ -57,8 +57,132 @@ def generate_time_series(start_date, end_date, data_type):
         return None
 
 def create_demo():
-    with gr.Blocks() as demo:
+    # 自定义CSS样式
+    custom_css = """
+        /* 日期选择器样式 */
+        input[type="date"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            width: 100%;
+        }
+        
+        /* 信息窗口样式 */
+        .date-info-popup {
+            display: none;
+            position: absolute;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        
+        .date-info-popup .morning {
+            color: #4CAF50;
+            margin-bottom: 5px;
+        }
+        
+        .date-info-popup .afternoon {
+            color: #2196F3;
+            margin-bottom: 5px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .color-box {
+            width: 15px;
+            height: 15px;
+            margin-right: 5px;
+            border: 1px solid #ccc;
+        }
+    """
+    
+    # 添加日期信息弹窗的HTML和JavaScript
+    date_info_html = """
+        <div id="dateInfoPopup" class="date-info-popup">
+            <div class="morning">
+                <div class="legend-item">
+                    <div class="color-box" style="background: #4CAF50;"></div>
+                    <span>上午：可预约时段</span>
+                </div>
+            </div>
+            <div class="afternoon">
+                <div class="legend-item">
+                    <div class="color-box" style="background: #2196F3;"></div>
+                    <span>下午：会议时段</span>
+                </div>
+            </div>
+            <div class="legend-item">
+                <div class="color-box" style="background: #FFC107;"></div>
+                <span>特殊日期</span>
+            </div>
+        </div>
+        
+        <script>
+            function showDateInfo(event, inputId) {
+                const popup = document.getElementById('dateInfoPopup');
+                const input = document.getElementById(inputId);
+                
+                // 计算弹窗位置
+                const rect = input.getBoundingClientRect();
+                popup.style.left = rect.left + 'px';
+                popup.style.top = (rect.bottom + 5) + 'px';
+                
+                // 显示弹窗
+                popup.style.display = 'block';
+                
+                // 阻止事件冒泡
+                event.stopPropagation();
+            }
+            
+            function hideDateInfo() {
+                const popup = document.getElementById('dateInfoPopup');
+                popup.style.display = 'none';
+            }
+            
+            // 为每个日期输入框添加事件监听
+            function setupDateInfoEvents(inputId) {
+                const input = document.getElementById(inputId);
+                if (input) {
+                    input.addEventListener('mousedown', (e) => showDateInfo(e, inputId));
+                    input.addEventListener('touchstart', (e) => showDateInfo(e, inputId));
+                    input.addEventListener('mouseup', hideDateInfo);
+                    input.addEventListener('touchend', hideDateInfo);
+                    input.addEventListener('mouseleave', hideDateInfo);
+                }
+            }
+            
+            // 页面加载完成后设置事件
+            document.addEventListener('DOMContentLoaded', function() {
+                setupDateInfoEvents('start_date');
+                setupDateInfoEvents('end_date');
+                setupDateInfoEvents('event_date');
+                setupDateInfoEvents('ts_start_date');
+                setupDateInfoEvents('ts_end_date');
+                
+                // 点击页面其他地方关闭弹窗
+                document.addEventListener('click', function(e) {
+                    if (!e.target.closest('.date-info-popup') && 
+                        !e.target.closest('input[type="date"]')) {
+                        hideDateInfo();
+                    }
+                });
+            });
+        </script>
+    """
+    
+    with gr.Blocks(css=custom_css) as demo:
         gr.Markdown("# 日期和时间组件演示")
+        
+        # 添加日期信息弹窗
+        gr.HTML(date_info_html)
         
         with gr.Tab("日期范围选择"):
             with gr.Row():
@@ -75,19 +199,8 @@ def create_demo():
                     elem_id="end_date"
                 )
             
-            # 添加HTML日期选择器
+            # 添加日期选择器转换脚本
             gr.HTML("""
-                <style>
-                    .date-input input {
-                        cursor: pointer;
-                    }
-                    input[type="date"] {
-                        padding: 8px;
-                        border: 1px solid #ccc;
-                        border-radius: 4px;
-                        font-size: 16px;
-                    }
-                </style>
                 <script>
                     function convertToDateInput(textboxId) {
                         const textbox = document.getElementById(textboxId);
@@ -96,7 +209,6 @@ def create_demo():
                         }
                     }
                     
-                    // 等待DOM加载完成
                     document.addEventListener('DOMContentLoaded', function() {
                         convertToDateInput('start_date');
                         convertToDateInput('end_date');

@@ -42,9 +42,17 @@ Page({
     ],
     todayIndex: null, // 今天在meals数组中的索引
     remainingWorkdays: 0, // 到下一个结算日的工作日数量
-    debug: false, // 调试开关，设置为false以屏蔽调试输出
+    debug: false, // 调试开关，设置为false以���蔽调试输出
     useCustomTime: false,  // 是否使用自定义时间
     customTime: 13,       // 自定义时间（小时）
+    showPopup: false,
+    popupInfo: {
+      date: '',
+      morning: '',
+      afternoon: '',
+      x: 0,
+      y: 0
+    }
   },
 
   onLoad() {
@@ -399,12 +407,12 @@ Page({
       currentDate.setDate(currentDate.getDate() + 1)
     }
 
-    console.log('日历初始化:', {
-      开始日期: startDate.toLocaleDateString(),
-      结束日期: endDate.toLocaleDateString(),
-      总天数: days.length,
-      第一天星期: firstDayOfMonth
-    })
+    // console.log('日历初始化:', {
+    //   开始日期: startDate.toLocaleDateString(),
+    //   结束日期: endDate.toLocaleDateString(),
+    //   总天数: days.length,
+    //   第一天星期: firstDayOfMonth
+    // })
 
     this.setData({ days })
   },
@@ -466,5 +474,49 @@ Page({
       return this.data.customTime;
     }
     return new Date().getHours();
+  },
+
+  // 添加长按处理方法
+  handleLongPress(e) {
+    const { date, morning, afternoon } = e.currentTarget.dataset;
+    // 获取点击位置
+    const { clientX, clientY } = e.touches[0];
+    
+    this.setData({
+      showPopup: true,
+      popupInfo: {
+        date: date,
+        morning: this.getMealDescription(morning),
+        afternoon: this.getMealDescription(afternoon),
+        x: clientX,
+        y: clientY - 100  // 向上偏移100px，避免被手指遮挡
+      }
+    });
+  },
+
+  // 添加手指松开处理方法
+  handleTouchEnd() {
+    this.setData({
+      showPopup: false
+    });
+  },
+
+  // 添加获取餐食描述的方法
+  getMealDescription(status) {
+    const statusMap = {
+      'meal11': '11元标准餐',
+      'meal15': '15元营养餐',
+      'holiday': '节假日休息',
+      'past': '已过去',
+      'off': '未安排'
+    };
+    const colorMap = {
+      'meal11': '浅绿色',
+      'meal15': '深绿色',
+      'holiday': '橙色',
+      'past': '灰色',
+      'off': '红色'
+    };
+    return `${statusMap[status] || status}（${colorMap[status] || '未知'}）`;
   }
 })

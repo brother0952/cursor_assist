@@ -1,9 +1,9 @@
 <!--index.wxml-->
-<navigation-bar title="吃饭啦" back="{{false}}" color="black" background="#FFF"></navigation-bar>
+<navigation-bar title="Move Up" back="{{false}}" color="black" background=""></navigation-bar>
 <scroll-view class="scrollarea" scroll-y type="list">
   <view class="container">
     <view class="input-section">
-      <input type="number" class="number-input" placeholder="请输入金额" bindinput="onBalanceInput" />
+      <input type="number" class="number-input" placeholder="请输入饭卡金额" bindinput="onBalanceInput" />
     </view>
 
     <view class="plan-info" wx:if="{{balance > 0}}">
@@ -26,11 +26,33 @@
       <view class="calendar-body">
         <view class="day {{item.isToday ? 'today' : ''}} {{!item.isInRange ? 'disabled' : ''}} {{item.isPast ? 'isPast' : ''}}" 
               wx:for="{{days}}" 
-              wx:key="index">
+              wx:key="index"
+              bindlongpress="handleLongPress"
+              bindtouchend="handleTouchEnd"
+              data-date="{{item.day}}"
+              data-morning="{{item.morning}}"
+              data-afternoon="{{item.afternoon}}">
           <text class="day-number">{{item.day}}</text>
           <view class="time-slots" wx:if="{{item.isInRange}}">
             <view class="time-slot morning {{item.morning}}"></view>
             <view class="time-slot afternoon {{item.afternoon}}"></view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 弹窗 -->
+      <view class="popup" 
+            wx:if="{{showPopup}}" 
+            style="left:{{popupInfo.x}}px; top:{{popupInfo.y}}px">
+        <view class="popup-content">
+          <view class="popup-title">{{popupInfo.date}}日</view>
+          <view class="popup-item">
+            <text>午餐：</text>
+            <text>{{popupInfo.morning}}</text>
+          </view>
+          <view class="popup-item">
+            <text>晚餐：</text>
+            <text>{{popupInfo.afternoon}}</text>
           </view>
         </view>
       </view>
