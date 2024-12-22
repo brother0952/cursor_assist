@@ -67,35 +67,43 @@ Page({
       endDate = new Date(today.getFullYear(), today.getMonth(), 20);
     }
 
+    if (this.data.debug) {
+      console.log('日期范围计算 >>>>>>>>>>>>');
+      console.log(JSON.stringify({
+        今天: {
+          日期: today.toLocaleDateString(),
+          小时: currentHour,
+          日期数字: today.getDate()
+        },
+        开始日期: startDate.toLocaleDateString(),
+        结束日期: endDate.toLocaleDateString(),
+        计算过程: {
+          是否大于20日: today.getDate() > 20,
+          月份处理: today.getDate() > 20 ? '使用本月21日到下月20日' : '使用上月21日到本月20日'
+        }
+      }, null, 2));
+    }
+
     // 计算天数
     const days = Math.floor((endDate - startDate) / (24 * 60 * 60 * 1000)) + 1;
     
     // 初始化消费计划数组
     const meals = new Array(days).fill(null).map(() => [0, 0]);
 
-    let currentDate = new Date(startDate.getTime());
-    let todayIndex = null;
+    // 先计算今天的索引
+    const todayIndex = Math.floor((today - startDate) / (24 * 60 * 60 * 1000));
     let workdayCount = 0;
 
-    // 先计算今天的索引
-    todayIndex = Math.floor((today - startDate) / (24 * 60 * 60 * 1000));
-
-    if (this.data.debug) {
-      console.log('初始化日期范围:', {
-        today: today.toLocaleDateString(),
-        startDate: startDate.toLocaleDateString(),
-        endDate: endDate.toLocaleDateString(),
-        todayIndex: todayIndex
-      });
-    }
-
+    let currentDate = new Date(startDate.getTime());
     while (currentDate <= endDate) {
       const index = Math.floor((currentDate - startDate) / (24 * 60 * 60 * 1000));
       
       if (index >= 0 && index < days) {
         const dayOfWeek = currentDate.getDay();
         const dateStr = this.formatDate(currentDate);
-        const isPast = currentDate < today;
+        
+        // 修改日期比较逻辑
+        const isPast = this.compareDates(currentDate, today) < 0;
         
         if (isPast) {
           meals[index] = [-1, -1]; // 过去的日期
@@ -110,6 +118,14 @@ Page({
       }
       
       currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    if (this.data.debug) {
+      console.log('初始化消费计划数组:', JSON.stringify({
+        meals: meals,
+        todayIndex: todayIndex,
+        workdayCount: workdayCount
+      }, null, 2));
     }
 
     this.setData({ 
@@ -136,6 +152,22 @@ Page({
 
   // 计算最优消费方案
   calculateOptimalPlan(balance) {
+    // 在计算最优方案前，先打印当前状态
+    if (this.data.debug) {
+      console.log('计算最优方案开始 >>>>>>>>>>>>');
+      console.log(JSON.stringify({
+        balance: balance,
+        todayIndex: this.data.todayIndex,
+        meals数组长度: this.data.meals.length,
+        可用时间槽统计: this.data.meals.reduce((slots, day) => {
+          return {
+            morning: slots.morning + (day[0] >= 0 ? 1 : 0),
+            afternoon: slots.afternoon + (day[1] >= 0 ? 1 : 0)
+          };
+        }, { morning: 0, afternoon: 0 })
+      }, null, 2));
+    }
+
     let bestPlan = {
       meals11: 0,
       meals15: 0,
@@ -153,7 +185,11 @@ Page({
 
     // 只有在有可用时间槽时才计算
     if (availableSlots.morning === 0 && availableSlots.afternoon === 0) {
-      console.warn("没有可用的消费计划时间槽");
+      console.warn("没有可用的消费计划时间槽，详细信息：", JSON.stringify({
+        todayIndex: this.data.todayIndex,
+        meals: this.data.meals,
+        availableSlots: availableSlots
+      }, null, 2));
       return;
     }
 
@@ -243,13 +279,13 @@ Page({
   getTodayMealStatus(currentHour) {
     if (currentHour >= 17) {
       // 下午5点后，全天结束
-      return [-1, -1]
+      return [-1, -1];
     } else if (currentHour >= 11) {
-      // 上午11点后，上午结束
-      return [-1, 0]
+      // 上午11点后，上午结束，下午可用
+      return [-1, 0];
     } else {
       // 上午11点前，全天可用
-      return [0, 0]
+      return [0, 0];
     }
   },
 
@@ -534,4 +570,16 @@ Page({
     }
     return new Date().getHours();
   },
+
+  // 添加日期比较方法
+  compareDates(date1, date2) {
+    const d1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
+    const d2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
+    return d1 - d2;
+  },
+
+  // 修改日期相等判断方法
+  isSameDay(date1, date2) {
+    return this.compareDates(date1, date2) === 0;
+  }
 })
