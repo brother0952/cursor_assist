@@ -262,3 +262,46 @@ page {
 .popup-item text:last-child {
   color: #333;
 }
+
+/* 添加调试面板样式 */
+.debug-panel {
+  width: 100%;
+  background: #f5f5f5;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin: 20rpx 0;
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.1);
+}
+
+.debug-header {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #666;
+  margin-bottom: 16rpx;
+  padding-bottom: 10rpx;
+  border-bottom: 1rpx solid #ddd;
+}
+
+.debug-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10rpx 0;
+  font-size: 26rpx;
+  color: #333;
+}
+
+.debug-input {
+  width: 100rpx;
+  text-align: center;
+  padding: 4rpx 8rpx;
+  border: 1rpx solid #ddd;
+  border-radius: 4rpx;
+}
+
+.picker {
+  padding: 10rpx 20rpx;
+  background: #fff;
+  border-radius: 4rpx;
+  border: 1rpx solid #ddd;
+}

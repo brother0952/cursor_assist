@@ -16,6 +16,42 @@
       </view>
     </view>
     
+    <view class="debug-panel" wx:if="{{debug}}">
+      <view class="debug-header">调试设置</view>
+      
+      <view class="debug-item">
+        <text>使用自定义时间</text>
+        <switch checked="{{useCustomTime}}" bindchange="onCustomTimeSwitch"/>
+      </view>
+      
+      <view class="debug-item" wx:if="{{useCustomTime}}">
+        <text>自定义小时(0-23)</text>
+        <input type="number" 
+               class="debug-input" 
+               value="{{customTime}}" 
+               bindinput="onCustomTimeInput"
+               min="0" 
+               max="23"/>
+      </view>
+
+      <view class="debug-item">
+        <text>使用自定义日期</text>
+        <switch checked="{{useCustomDate}}" bindchange="onCustomDateSwitch"/>
+      </view>
+      
+      <view class="debug-item" wx:if="{{useCustomDate}}">
+        <picker mode="date" 
+                value="{{customDate}}" 
+                start="2024-01-01" 
+                end="2025-12-31" 
+                bindchange="onCustomDateChange">
+          <view class="picker">
+            当前选择: {{customDate || '请选择日期'}}
+          </view>
+        </picker>
+      </view>
+    </view>
+
     <view class="calendar-container">
       <view class="month-header">
         <text class="month-text">{{currentMonth}}月</text>
