@@ -81,7 +81,7 @@
             wx:if="{{showPopup}}" 
             style="left:{{popupInfo.x}}px; top:{{popupInfo.y}}px">
         <view class="popup-content">
-          <view class="popup-title">{{popupInfo.date}}日</view>
+          <view class="popup-title">{{popupInfo.month}}月{{popupInfo.date}}日</view>
           <view class="popup-item">
             <text>午餐：</text>
             <text>{{popupInfo.morning}}</text>

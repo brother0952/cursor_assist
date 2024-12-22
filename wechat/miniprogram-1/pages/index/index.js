@@ -365,60 +365,57 @@ Page({
 
   initCalendar() {
     const today = this.getCurrentDate();
-    today.setHours(this.getCurrentHour(), 0, 0, 0);
-
     let startDate, endDate;
 
-    // 判断今天的日期
     if (today.getDate() > 20) {
-      // 如果今天的日期大于20日，范围是本月21日到下个月20日
       startDate = new Date(today.getFullYear(), today.getMonth(), 21);
       endDate = new Date(today.getFullYear(), today.getMonth() + 1, 20);
     } else {
-      // 如果今天的日期小于等于20日，范围是上个月21日到本月20日
       startDate = new Date(today.getFullYear(), today.getMonth() - 1, 21);
       endDate = new Date(today.getFullYear(), today.getMonth(), 20);
     }
 
-    // 获取起始日期是周几（0-6，0代表周日）
-    const firstDayOfWeek = startDate.getDay();
-
-    let days = [];
+    // 计算第一天是星期几
+    const firstDayWeek = startDate.getDay();
     
-    // 填充起始日期之前的空白
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      days.push({
-        day: '',
-        isInRange: false
-      });
-    }
+    // 计算总天数
+    const totalDays = Math.floor((endDate - startDate) / (24 * 60 * 60 * 1000)) + 1;
 
-    // 填充日期直到结束日期
+    // 初始化日历数组
+    const days = new Array(42).fill(null).map(() => ({
+      day: '',
+      isInRange: false,
+      isToday: false,
+      isPast: false,
+      morning: 'off',
+      afternoon: 'off',
+      month: '' // 添加月份信息
+    }));
+
+    // 填充日期
     let currentDate = new Date(startDate.getTime());
-    while (currentDate <= endDate) {
-      const isPast = currentDate < today;
-      const dateInfo = this.getDateInfo(currentDate, isPast);
-      days.push({
-        day: currentDate.getDate(),
-        isToday: this.isSameDay(currentDate, today),
-        isInRange: true,
-        isPast: isPast,
-        morning: dateInfo.morning,
-        afternoon: dateInfo.afternoon
-      });
+    for (let i = 0; i < totalDays; i++) {
+      const index = firstDayWeek + i;
+      if (index < days.length) {
+        days[index] = {
+          day: currentDate.getDate(),
+          month: currentDate.getMonth() + 1, // 添加月份信息
+          isInRange: true,
+          isToday: this.isSameDay(currentDate, today),
+          isPast: this.compareDates(currentDate, today) < 0,
+          morning: 'off',
+          afternoon: 'off'
+        };
+      }
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    if (this.data.debug) {
-      console.log('日历初始化:', {
-        开始日期: startDate.toLocaleDateString(),
-        结束日期: endDate.toLocaleDateString(),
-        总天数: days.length,
-        第一天星期: firstDayOfWeek
-      });
-    }
-    console.log(days);
-    this.setData({ days });
+    this.setData({
+      days,
+      currentMonth: today.getMonth() + 1 // 设置当前月份
+    });
+
+    this.updateCalendarDisplay();
   },
 
   isSameDay(date1, date2) {
@@ -484,17 +481,22 @@ Page({
   // 添加长按处理方法
   handleLongPress(e) {
     const { date, morning, afternoon } = e.currentTarget.dataset;
-    // 获点击位置
-    const { clientX, clientY } = e.touches[0];
+    const dayInfo = this.data.days.find(d => d.day === date);
     
+    if (!dayInfo || !dayInfo.isInRange) return;
+
+    // 获取点击位置
+    const { clientX: x, clientY: y } = e.touches[0];
+
     this.setData({
       showPopup: true,
       popupInfo: {
         date: date,
-        morning: this.getMealDescription(morning),
-        afternoon: this.getMealDescription(afternoon),
-        x: clientX,
-        y: clientY - 100  // 向上偏移100px，避免被手指遮挡
+        month: dayInfo.month, // 添加月份信息
+        morning: this.getMealStatusText(morning),
+        afternoon: this.getMealStatusText(afternoon),
+        x: x,
+        y: y
       }
     });
   },
@@ -506,23 +508,16 @@ Page({
     });
   },
 
-  // 添加获取餐食描述的方法
-  getMealDescription(status) {
-    const statusMap = {
-      'meal11': '11元标准餐',
-      'meal15': '15元营养餐',
-      'holiday': '节假日休息',
-      'past': '已过去',
-      'off': '未安排'
-    };
-    const colorMap = {
-      'meal11': '浅绿色',
-      'meal15': '深绿色',
-      'holiday': '橙色',
-      'past': '灰色',
-      'off': '红色'
-    };
-    return `${statusMap[status] || status}(${colorMap[status] || '未知'})`;
+  // 获取餐食状态的文字描述
+  getMealStatusText(status) {
+    switch (status) {
+      case 'meal11': return '11元餐';
+      case 'meal15': return '15元餐';
+      case 'holiday': return '节假日';
+      case 'past': return '已过期';
+      case 'off': return '未安排';
+      default: return '未知状态';
+    }
   },
 
   onCustomTimeSwitch(e) {
