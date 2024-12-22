@@ -77,6 +77,18 @@ Page({
     let todayIndex = null;
     let workdayCount = 0;
 
+    // 先计算今天的索引
+    todayIndex = Math.floor((today - startDate) / (24 * 60 * 60 * 1000));
+
+    if (this.data.debug) {
+      console.log('初始化日期范围:', {
+        today: today.toLocaleDateString(),
+        startDate: startDate.toLocaleDateString(),
+        endDate: endDate.toLocaleDateString(),
+        todayIndex: todayIndex
+      });
+    }
+
     while (currentDate <= endDate) {
       const index = Math.floor((currentDate - startDate) / (24 * 60 * 60 * 1000));
       
@@ -91,7 +103,6 @@ Page({
           meals[index] = [-2, -2]; // 节假日
         } else if (this.isSameDay(currentDate, today)) {
           meals[index] = this.getTodayMealStatus(currentHour);
-          todayIndex = index;
         } else {
           meals[index] = [0, 0]; // 未来工作日
           workdayCount++;
@@ -132,20 +143,23 @@ Page({
       totalMeals: 0
     };
     
-    // 计算可用的时间槽
-    const availableSlots = this.data.meals.reduce((count, day) => {
-      return count + (day[0] >= 0 ? 1 : 0) + (day[1] >= 0 ? 1 : 0);
-    }, 0);
+    // 计算可用的时间槽（分别计算上午和下午的可用槽）
+    const availableSlots = this.data.meals.reduce((slots, day) => {
+      return {
+        morning: slots.morning + (day[0] >= 0 ? 1 : 0),
+        afternoon: slots.afternoon + (day[1] >= 0 ? 1 : 0)
+      };
+    }, { morning: 0, afternoon: 0 });
 
     // 只有在有可用时间槽时才计算
-    if (availableSlots === 0) {
+    if (availableSlots.morning === 0 && availableSlots.afternoon === 0) {
       console.warn("没有可用的消费计划时间槽");
       return;
     }
 
     // 计算最优方案
-    for (let meals15 = 0; meals15 <= availableSlots; meals15++) {
-      for (let meals11 = 0; meals11 <= availableSlots - meals15; meals11++) {
+    for (let meals15 = 0; meals15 <= availableSlots.morning + availableSlots.afternoon; meals15++) {
+      for (let meals11 = 0; meals11 <= availableSlots.morning + availableSlots.afternoon - meals15; meals11++) {
         const total = meals15 * 15 + meals11 * 11;
         const remaining = balance - total;
         
@@ -192,11 +206,22 @@ Page({
       
       if (!mealDay) return day;
 
-      return {
-        ...day,
-        morning: this.getMealStatus(mealDay[0]),
-        afternoon: this.getMealStatus(mealDay[1])
-      };
+      const newDay = { ...day };
+      newDay.morning = this.getMealStatus(mealDay[0]);
+      newDay.afternoon = this.getMealStatus(mealDay[1]);
+
+      if (this.data.debug) {
+        console.log(JSON.stringify({
+          日期: day.day,
+          meals值: mealDay,
+          显示状态: {
+            morning: newDay.morning,
+            afternoon: newDay.afternoon
+          }
+        }, null, 2));
+      }
+      
+      return newDay;
     });
     
     this.setData({ days });
@@ -248,34 +273,58 @@ Page({
     let remainingMeals11 = plan.meals11;
     const meals = [...this.data.meals];
     
-    // 优先安排所有11元餐
+    if (this.data.debug) {
+      console.log('更新消费计划开始 >>>>>>>>>>>>');
+      console.log(JSON.stringify({
+        plan: plan,
+        todayIndex: this.data.todayIndex,
+        meals: meals
+      }, null, 2));
+    }
+
+    // 第一轮：优先安排15元餐到上午时段
+    for (let i = this.data.todayIndex; i < meals.length && remainingMeals15 > 0; i++) {
+      if (meals[i] && meals[i][0] >= 0) { // 只处理上午可用的时段
+        meals[i][0] = 15;
+        remainingMeals15--;
+        continue; // 找到一个位置后，继续下一个日期
+      }
+    }
+    
+    // 第二轮：剩余的15元餐安排到下午时段
+    for (let i = this.data.todayIndex; i < meals.length && remainingMeals15 > 0; i++) {
+      if (meals[i] && meals[i][1] >= 0) {
+        meals[i][1] = 15;
+        remainingMeals15--;
+        continue;
+      }
+    }
+    
+    // 第三轮：安排11元餐到上午剩余时段
     for (let i = this.data.todayIndex; i < meals.length && remainingMeals11 > 0; i++) {
-      if (meals[i] && meals[i][0] >= 0) { // 只处理可用的时段
+      if (meals[i] && meals[i][0] >= 0 && meals[i][0] !== 15) { // 确保不覆盖15元餐
         meals[i][0] = 11;
         remainingMeals11--;
       }
-      
-      if (meals[i] && meals[i][1] >= 0 && remainingMeals11 > 0) {
+    }
+    
+    // 第四轮：安排剩余的11元餐到下午时段
+    for (let i = this.data.todayIndex; i < meals.length && remainingMeals11 > 0; i++) {
+      if (meals[i] && meals[i][1] >= 0 && meals[i][1] !== 15) { // 确保不覆盖15元餐
         meals[i][1] = 11;
         remainingMeals11--;
       }
     }
-    
-    // 然后安排15元餐
-    for (let i = this.data.todayIndex; i < meals.length && remainingMeals15 > 0; i++) {
-      if (meals[i] && meals[i][0] >= 0) {
-        meals[i][0] = 15;
-        remainingMeals15--;
-      }
-      
-      if (meals[i] && meals[i][1] >= 0 && remainingMeals15 > 0) {
-        meals[i][1] = 15;
-        remainingMeals15--;
-      }
+
+    if (this.data.debug) {
+      console.log('更新消费计划结束 >>>>>>>>>>>>');
+      console.log(JSON.stringify({
+        meals: meals
+      }, null, 2));
     }
     
     this.setData({ meals });
-    this.updateCalendarDisplay(); // 更新日历显示
+    this.updateCalendarDisplay();
   },
 
   initCalendar() {
