@@ -16,7 +16,7 @@ Page({
     meals: [], // 存储日期范围和消费计划的数组
     todayIndex: null, // 今天在数组中的索引
     remainingWorkdays: 0, // 到下一个结算日的工作日数量
-    debug: true, // 调试开关
+    debug: false, // 调试开关
     useCustomTime: false,  // 是否使用自定义时间
     customTime: 13,       // 自定义时间（小时）
     showPopup: false,
@@ -140,13 +140,38 @@ Page({
 
   // 2. 处理用户输入金额，计算最优方案
   onBalanceInput(e) {
-    const balance = Number(e.detail.value);
-    this.setData({ balance });
+    const balance = parseFloat(e.detail.value) || 0;
+    
+    // 先更新余额
+    this.setData({
+      balance: balance,
+      // 同时重置计划
+      plan: {
+        meals11: 0,
+        meals15: 0,
+        remaining: 0,
+        totalMeals: 0
+      }
+    });
 
+    // 重置meals数组
+    const meals = this.data.meals.map(day => {
+      // 保持过期和节假日的状态不变
+      if (day[0] === -1 || day[0] === -2) {
+        return [...day];
+      }
+      // 重置其他日期的状态
+      return [0, 0];
+    });
+    
+    this.setData({ meals });
+    
+    // 更新日历显示
+    this.updateCalendarDisplay();
+
+    // 如果有金额，计算新的方案
     if (balance > 0) {
       this.calculateOptimalPlan(balance);
-    } else {
-      this.resetMealsArray();
     }
   },
 
@@ -211,6 +236,8 @@ Page({
     }
 
     this.setData({ plan: bestPlan });
+    
+    // 根据计划更新meals数组和日历显示
     this.updateMealsWithPlan(bestPlan);
   },
 
@@ -307,8 +334,17 @@ Page({
   updateMealsWithPlan(plan) {
     let remainingMeals15 = plan.meals15;
     let remainingMeals11 = plan.meals11;
-    const meals = [...this.data.meals];
     
+    // 重置可用日期的状态
+    const meals = this.data.meals.map(day => {
+      // 保持过期和节假日的状态不变
+      if (day[0] === -1 || day[0] === -2) {
+        return [...day];
+      }
+      // 重置其他日期的状态
+      return [0, 0];
+    });
+
     if (this.data.debug) {
       console.log('更新消费计划开始 >>>>>>>>>>>>');
       console.log(JSON.stringify({
@@ -486,13 +522,36 @@ Page({
     if (!dayInfo || !dayInfo.isInRange) return;
 
     // 获取点击位置
-    const { clientX: x, clientY: y } = e.touches[0];
+    const { clientX, clientY } = e.touches[0];
+    
+    // 获取系统信息
+    const systemInfo = wx.getSystemInfoSync();
+    const screenWidth = systemInfo.windowWidth;
+    const screenHeight = systemInfo.windowHeight;
+    
+    // 计算弹窗位置
+    let x = clientX;
+    let y = clientY;
+    
+    // 确保弹窗不会超出屏幕左右边界
+    const popupWidth = 120; // 弹窗宽度的一半（rpx）
+    const minX = popupWidth;
+    const maxX = screenWidth - popupWidth;
+    
+    x = Math.max(minX, Math.min(maxX, x));
+    
+    // 确保弹窗不会超出屏幕上下边界
+    const popupHeight = 180; // 弹窗高度（rpx）
+    if (y - popupHeight < 0) {
+      // 如果上方空间不足，则显示在下方
+      y = y + 100;
+    }
 
     this.setData({
       showPopup: true,
       popupInfo: {
         date: date,
-        month: dayInfo.month, // 添加月份信息
+        month: dayInfo.month,
         morning: this.getMealStatusText(morning),
         afternoon: this.getMealStatusText(afternoon),
         x: x,
@@ -511,8 +570,8 @@ Page({
   // 获取餐食状态的文字描述
   getMealStatusText(status) {
     switch (status) {
-      case 'meal11': return '11元餐';
-      case 'meal15': return '15元餐';
+      case 'meal11': return '标准餐 (¥11)';
+      case 'meal15': return '营养餐 (¥15)';
       case 'holiday': return '节假日';
       case 'past': return '已过期';
       case 'off': return '未安排';
