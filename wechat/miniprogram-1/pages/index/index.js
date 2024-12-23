@@ -16,7 +16,7 @@ Page({
     meals: [], // 存储日期范围和消费计划的数组
     todayIndex: null, // 今天在数组中的索引
     remainingWorkdays: 0, // 到下一个结算日的工作日数量
-    debug: false, // 调试开关
+    debug: true, // 调试开关
     useCustomTime: false,  // 是否使用自定义时间
     customTime: 13,       // 自定义时间（小时）
     showPopup: false,
@@ -189,22 +189,6 @@ Page({
 
   // 计算最优消费方案
   calculateOptimalPlan(balance) {
-    // 在计算最优方案前，先打印当前状态
-    if (this.data.debug) {
-      console.log('计算最优方案开始 >>>>>>>>>>>>');
-      console.log(JSON.stringify({
-        balance: balance,
-        todayIndex: this.data.todayIndex,
-        meals数组长度: this.data.meals.length,
-        可用时间槽统计: this.data.meals.reduce((slots, day) => {
-          return {
-            morning: slots.morning + (day[0] >= 0 ? 1 : 0),
-            afternoon: slots.afternoon + (day[1] >= 0 ? 1 : 0)
-          };
-        }, { morning: 0, afternoon: 0 })
-      }, null, 2));
-    }
-
     let bestPlan = {
       meals11: 0,
       meals15: 0,
@@ -213,42 +197,63 @@ Page({
     };
     
     // 计算可用的时间槽
-    const availableSlots = this.data.meals.reduce((count, day) => {
-      return count + (day[0] >= 0 ? 1 : 0) + (day[1] >= 0 ? 1 : 0);
-    }, 0);
+    const availableSlots = this.data.meals.reduce((slots, day) => {
+      return {
+        morning: slots.morning + (day[0] >= 0 ? 1 : 0),
+        afternoon: slots.afternoon + (day[1] >= 0 ? 1 : 0)
+      };
+    }, { morning: 0, afternoon: 0 });
 
-    if (availableSlots === 0) {
+    if (availableSlots.morning === 0 && availableSlots.afternoon === 0) {
       console.warn("没有可用的消费计划时间槽");
       return;
     }
 
     if (this.data.planType === 0) {
       // 方案一：标准餐+营养餐
-      for (let meals15 = 0; meals15 <= availableSlots; meals15++) {
-        for (let meals11 = 0; meals11 <= availableSlots - meals15; meals11++) {
-          const total = meals15 * 15 + meals11 * 11;
-          const remaining = balance - total;
-          
-          if (remaining >= 0 && remaining < bestPlan.remaining) {
-            bestPlan = {
-              meals15,
-              meals11,
-              remaining,
-              totalMeals: meals15 + meals11
-            };
-          }
+      // 先计算用11元能覆盖多少个上午
+      const maxMorning11 = Math.min(Math.floor(balance / 11), availableSlots.morning);
+      let bestRemaining = balance;
+      let bestMeals11 = 0;
+      let bestMeals15 = 0;
+
+      // 从最大可能的11元早餐数开始尝试
+      for (let morning11 = maxMorning11; morning11 >= 0; morning11--) {
+        const remaining11 = balance - (morning11 * 11);
+        
+        // 尝试用剩余金额安排15元餐
+        const maxMeals15 = Math.floor(remaining11 / 15);
+        const meals15 = Math.min(maxMeals15, 
+          availableSlots.morning - morning11 + availableSlots.afternoon);
+        
+        const remaining = remaining11 - (meals15 * 15);
+        
+        // 如果这个方案的剩余金额更小，且保证了更多的上午有餐
+        if (remaining >= 0 && 
+            (morning11 + meals15 >= bestMeals11 + bestMeals15) && 
+            remaining < bestRemaining) {
+          bestMeals11 = morning11;
+          bestMeals15 = meals15;
+          bestRemaining = remaining;
         }
       }
+
+      bestPlan = {
+        meals11: bestMeals11,
+        meals15: bestMeals15,
+        remaining: bestRemaining,
+        totalMeals: bestMeals11 + bestMeals15
+      };
     } else {
       // 方案二：仅营养餐
       const maxMeals15 = Math.floor(balance / 15);
-      const meals15 = Math.min(maxMeals15, availableSlots);
-      const remaining = balance - (meals15 * 15);
+      const meals15 = Math.min(maxMeals15, 
+        availableSlots.morning + availableSlots.afternoon);
       
       bestPlan = {
-        meals15,
+        meals15: meals15,
         meals11: 0,
-        remaining,
+        remaining: balance - (meals15 * 15),
         totalMeals: meals15
       };
     }
@@ -609,7 +614,7 @@ Page({
     this.setData({
       customTime: value
     });
-    this.initMealsArray(); // ���新初始化日历
+    this.initMealsArray(); // 重新初始化日历
   },
 
   onCustomDateSwitch(e) {
