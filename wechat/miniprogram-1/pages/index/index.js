@@ -45,11 +45,21 @@ Page({
       '2025-01-01', // 元旦
     ],
     planType: 0, // 默认选择方案一
-    planTypes: ['方案一：标准餐+营养餐', '方案二：仅营养餐']
+    planTypes: ['方案一：标准餐(11)+营养餐(15)', '方案二：仅营养餐(15)']
   },
 
   onLoad() {
-    // 1. 初始化日期范围和消费计划数组
+    // 从本地存储读取之前的方案选择
+    try {
+      const planType = wx.getStorageSync('planType');
+      if (planType !== '') {
+        this.setData({ planType });
+      }
+    } catch (e) {
+      console.error('读取方案选择失败:', e);
+    }
+
+    // 初始化日期范围和消费计划数组
     this.initMealsArray();
   },
 
@@ -599,7 +609,7 @@ Page({
     this.setData({
       customTime: value
     });
-    this.initMealsArray(); // 重新初始化日历
+    this.initMealsArray(); // ���新初始化日历
   },
 
   onCustomDateSwitch(e) {
@@ -643,10 +653,17 @@ Page({
     return this.compareDates(date1, date2) === 0;
   },
 
-  // 添加方案选择处理方法
+  // 修改方案选择处理方法
   onPlanTypeChange(e) {
     const planType = parseInt(e.detail.value);
     this.setData({ planType });
+    
+    // 保存选择到本地存储
+    try {
+      wx.setStorageSync('planType', planType);
+    } catch (e) {
+      console.error('保存方案选择失败:', e);
+    }
     
     // 如果已经输入金额，重新计算方案
     if (this.data.balance > 0) {

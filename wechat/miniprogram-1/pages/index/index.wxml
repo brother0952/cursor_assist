@@ -1,11 +1,11 @@
 <!--index.wxml-->
-<navigation-bar title="Move Up" back="{{false}}" color="black" background=""></navigation-bar>
+<navigation-bar title="饭卡消费建议" back="{{false}}" color="black" background="#FFF"></navigation-bar>
 <scroll-view class="scrollarea" scroll-y type="list">
   <view class="container">
     <view class="input-section">
       <picker bindchange="onPlanTypeChange" value="{{planType}}" range="{{planTypes}}">
         <view class="plan-picker">
-          <text>当前方案：{{planTypes[planType]}}</text>
+          <text>{{planTypes[planType]}}</text>
           <text class="picker-arrow">▼</text>
         </view>
       </picker>
@@ -81,21 +81,21 @@
           </view>
         </view>
       </view>
+    </view>
 
-      <!-- 弹窗 -->
-      <view class="popup" 
-            wx:if="{{showPopup}}" 
-            style="left:{{popupInfo.x}}px; top:{{popupInfo.y}}px">
-        <view class="popup-content">
-          <view class="popup-title">{{popupInfo.month}}月{{popupInfo.date}}日</view>
-          <view class="popup-item">
-            <text>午餐：</text>
-            <text>{{popupInfo.morning}}</text>
-          </view>
-          <view class="popup-item">
-            <text>晚餐：</text>
-            <text>{{popupInfo.afternoon}}</text>
-          </view>
+    <!-- 弹窗 -->
+    <view class="popup" 
+          wx:if="{{showPopup}}" 
+          style="left:{{popupInfo.x}}px; top:{{popupInfo.y}}px">
+      <view class="popup-content">
+        <view class="popup-title">{{popupInfo.month}}月{{popupInfo.date}}日</view>
+        <view class="popup-item">
+          <text>午餐：</text>
+          <text>{{popupInfo.morning}}</text>
+        </view>
+        <view class="popup-item">
+          <text>晚餐：</text>
+          <text>{{popupInfo.afternoon}}</text>
         </view>
       </view>
     </view>
