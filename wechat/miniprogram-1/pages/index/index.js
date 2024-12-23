@@ -16,7 +16,7 @@ Page({
     meals: [], // 存储日期范围和消费计划的数组
     todayIndex: null, // 今天在数组中的索引
     remainingWorkdays: 0, // 到下一个结算日的工作日数量
-    debug: true, // 调试开关
+    debug: false, // 调试开关
     useCustomTime: false,  // 是否使用自定义时间
     customTime: 13,       // 自定义时间（小时）
     showPopup: false,
@@ -30,19 +30,41 @@ Page({
     useCustomDate: false,  // 使用自定义日期
     customDate: '',        // 自定义日期
     holidays: [
-      '2024-01-01', // 元旦
-      '2024-02-10', // 春节
-      '2024-02-11',
-      '2024-02-12',
-      '2024-02-13',
-      '2024-02-14',
-      '2024-02-15',
-      '2024-02-16',
-      '2024-02-17',
-      '2024-04-04', // 清明节
-      '2024-05-01', // 劳动节
-      '2024-06-10', // 端午节
       '2025-01-01', // 元旦
+      '2025-01-28', // 除夕
+      '2025-01-29', // 春节
+      '2025-01-30',
+      '2025-01-31',
+      '2025-02-01',
+      '2025-02-02',
+      '2025-02-03',
+      '2025-02-04',
+      '2025-04-04',
+      '2025-04-05',
+      '2025-04-06',
+      '2025-05-01',
+      '2025-05-02',
+      '2025-05-03',
+      '2025-05-04',
+      '2025-05-05',
+      '2025-05-31',
+      '2025-06-01',
+      '2025-06-02',
+      '2025-10-01',
+      '2025-10-02',
+      '2025-10-03',
+      '2025-10-04',
+      '2025-10-05',
+      '2025-10-06',
+      '2025-10-07',
+      '2025-10-08'
+    ],
+    workdays: [
+      '2025-01-26', // 春节调休
+      '2025-02-08',
+      '2025-04-27', // 劳动节调休
+      '2025-09-28', // 国庆节调休
+      '2025-10-11'
     ],
     planType: 0, // 默认选择方案一
     planTypes: ['方案一：标准餐(11)+营养餐(15)', '方案二：仅营养餐(15)']
@@ -111,15 +133,13 @@ Page({
       const index = Math.floor((currentDate - startDate) / (24 * 60 * 60 * 1000));
       
       if (index >= 0 && index < days) {
-        const dayOfWeek = currentDate.getDay();
+        const isWorkday = this.isWorkday(currentDate);
         const dateStr = this.formatDate(currentDate);
-        
-        // 修改日期比较逻辑
         const isPast = this.compareDates(currentDate, today) < 0;
         
         if (isPast) {
           meals[index] = [-1, -1]; // 过去的日期
-        } else if (dayOfWeek === 0 || dayOfWeek === 6 || this.data.holidays.includes(dateStr)) {
+        } else if (!isWorkday) {
           meals[index] = [-2, -2]; // 节假日
         } else if (this.isSameDay(currentDate, today)) {
           meals[index] = this.getTodayMealStatus(currentHour);
@@ -674,5 +694,24 @@ Page({
     if (this.data.balance > 0) {
       this.calculateOptimalPlan(this.data.balance);
     }
+  },
+
+  // 判断是否为工作��（需要考虑调休）
+  isWorkday(date) {
+    const dayOfWeek = date.getDay();
+    const dateStr = this.formatDate(date);
+    
+    // 如果是调休上班日，则返回true
+    if (this.data.workdays.includes(dateStr)) {
+      return true;
+    }
+    
+    // 如果是法定节假日，则返回false
+    if (this.data.holidays.includes(dateStr)) {
+      return false;
+    }
+    
+    // 普通工作日判断（周一至周五）
+    return dayOfWeek !== 0 && dayOfWeek !== 6;
   }
 })
