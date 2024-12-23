@@ -3,6 +3,12 @@
 <scroll-view class="scrollarea" scroll-y type="list">
   <view class="container">
     <view class="input-section">
+      <picker bindchange="onPlanTypeChange" value="{{planType}}" range="{{planTypes}}">
+        <view class="plan-picker">
+          <text>当前方案：{{planTypes[planType]}}</text>
+          <text class="picker-arrow">▼</text>
+        </view>
+      </picker>
       <input type="number" class="number-input" placeholder="请输入饭卡金额" bindinput="onBalanceInput" />
     </view>
 

@@ -43,7 +43,9 @@ Page({
       '2024-05-01', // 劳动节
       '2024-06-10', // 端午节
       '2025-01-01', // 元旦
-    ]
+    ],
+    planType: 0, // 默认选择方案一
+    planTypes: ['方案一：标准餐+营养餐', '方案二：仅营养餐']
   },
 
   onLoad() {
@@ -200,44 +202,48 @@ Page({
       totalMeals: 0
     };
     
-    // 计算可用的时间槽（分别计算上午和下午的可用槽）
-    const availableSlots = this.data.meals.reduce((slots, day) => {
-      return {
-        morning: slots.morning + (day[0] >= 0 ? 1 : 0),
-        afternoon: slots.afternoon + (day[1] >= 0 ? 1 : 0)
-      };
-    }, { morning: 0, afternoon: 0 });
+    // 计算可用的时间槽
+    const availableSlots = this.data.meals.reduce((count, day) => {
+      return count + (day[0] >= 0 ? 1 : 0) + (day[1] >= 0 ? 1 : 0);
+    }, 0);
 
-    // 只有在有可用时间槽时才计算
-    if (availableSlots.morning === 0 && availableSlots.afternoon === 0) {
-      console.warn("没有可用的消费计划时间槽，详细信息：", JSON.stringify({
-        todayIndex: this.data.todayIndex,
-        meals: this.data.meals,
-        availableSlots: availableSlots
-      }, null, 2));
+    if (availableSlots === 0) {
+      console.warn("没有可用的消费计划时间槽");
       return;
     }
 
-    // 计算最优方案
-    for (let meals15 = 0; meals15 <= availableSlots.morning + availableSlots.afternoon; meals15++) {
-      for (let meals11 = 0; meals11 <= availableSlots.morning + availableSlots.afternoon - meals15; meals11++) {
-        const total = meals15 * 15 + meals11 * 11;
-        const remaining = balance - total;
-        
-        if (remaining >= 0 && remaining < bestPlan.remaining) {
-          bestPlan = {
-            meals15,
-            meals11,
-            remaining,
-            totalMeals: meals15 + meals11
-          };
+    if (this.data.planType === 0) {
+      // 方案一：标准餐+营养餐
+      for (let meals15 = 0; meals15 <= availableSlots; meals15++) {
+        for (let meals11 = 0; meals11 <= availableSlots - meals15; meals11++) {
+          const total = meals15 * 15 + meals11 * 11;
+          const remaining = balance - total;
+          
+          if (remaining >= 0 && remaining < bestPlan.remaining) {
+            bestPlan = {
+              meals15,
+              meals11,
+              remaining,
+              totalMeals: meals15 + meals11
+            };
+          }
         }
       }
+    } else {
+      // 方案二：仅营养餐
+      const maxMeals15 = Math.floor(balance / 15);
+      const meals15 = Math.min(maxMeals15, availableSlots);
+      const remaining = balance - (meals15 * 15);
+      
+      bestPlan = {
+        meals15,
+        meals11: 0,
+        remaining,
+        totalMeals: meals15
+      };
     }
 
     this.setData({ plan: bestPlan });
-    
-    // 根据计划更新meals数组和日历显示
     this.updateMealsWithPlan(bestPlan);
   },
 
@@ -635,5 +641,16 @@ Page({
   // 修改日期相等判断方法
   isSameDay(date1, date2) {
     return this.compareDates(date1, date2) === 0;
+  },
+
+  // 添加方案选择处理方法
+  onPlanTypeChange(e) {
+    const planType = parseInt(e.detail.value);
+    this.setData({ planType });
+    
+    // 如果已经输入金额，重新计算方案
+    if (this.data.balance > 0) {
+      this.calculateOptimalPlan(this.data.balance);
+    }
   }
 })
