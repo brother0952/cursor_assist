@@ -1,0 +1,60 @@
+{
+    "frameFormat": {
+        "startsWith": "*",
+        "endsWith": "\n",
+        "format": "json"
+    },
+    "title": "GPS数据监控",
+    "groups": [
+        {
+            "title": "位置信息",
+            "widgets": [
+                {
+                    "title": "GPS位置",
+                    "type": "map",
+                    "latitude": "@latitude",
+                    "longitude": "@longitude"
+                }
+            ]
+        },
+        {
+            "title": "GPS参数",
+            "widgets": [
+                {
+                    "title": "海拔",
+                    "type": "number",
+                    "value": "@altitude",
+                    "unit": "m"
+                },
+                {
+                    "title": "卫星数量",
+                    "type": "number",
+                    "value": "@satellites"
+                },
+                {
+                    "title": "速度",
+                    "type": "gauge",
+                    "value": "@speed",
+                    "min": 0,
+                    "max": 60,
+                    "unit": "km/h"
+                }
+            ]
+        }
+    ],
+    "frameParser": "
+        function parse(frame) {
+            if (frame.length > 0) {
+                let data = JSON.parse(frame);
+                return [
+                    data.latitude,
+                    data.longitude,
+                    data.altitude,
+                    data.satellites,
+                    data.speed
+                ];
+            }
+            return [];
+        }
+    "
+} 

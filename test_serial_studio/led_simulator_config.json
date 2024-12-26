@@ -1,0 +1,66 @@
+{
+    "frameFormat": {
+        "startsWith": "*",
+        "endsWith": "\n",
+        "format": "json"
+    },
+    "title": "LED状态监控",
+    "groups": [
+        {
+            "title": "LED状态",
+            "widgets": [
+                {
+                    "title": "LED 1",
+                    "type": "boolean",
+                    "value": "@led_states.led1"
+                },
+                {
+                    "title": "LED 2",
+                    "type": "boolean",
+                    "value": "@led_states.led2"
+                },
+                {
+                    "title": "LED 3",
+                    "type": "boolean",
+                    "value": "@led_states.led3"
+                }
+            ]
+        },
+        {
+            "title": "LED参数",
+            "widgets": [
+                {
+                    "title": "亮度",
+                    "type": "gauge",
+                    "value": "@brightness",
+                    "min": 0,
+                    "max": 1,
+                    "unit": "%"
+                },
+                {
+                    "title": "温度",
+                    "type": "gauge",
+                    "value": "@temperature",
+                    "min": 20,
+                    "max": 40,
+                    "unit": "°C"
+                }
+            ]
+        }
+    ],
+    "frameParser": "
+        function parse(frame) {
+            if (frame.length > 0) {
+                let data = JSON.parse(frame);
+                return [
+                    data.led_states.led1,
+                    data.led_states.led2,
+                    data.led_states.led3,
+                    data.brightness,
+                    data.temperature
+                ];
+            }
+            return [];
+        }
+    "
+} 

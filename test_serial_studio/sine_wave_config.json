@@ -1,0 +1,43 @@
+{
+    "frameFormat": {
+        "startsWith": "$",
+        "endsWith": ";",
+        "format": "csv"
+    },
+    "title": "正弦波测试",
+    "groups": [
+        {
+            "title": "波形数据",
+            "widgets": [
+                {
+                    "title": "波形图",
+                    "type": "plot",
+                    "points": 100,
+                    "datasets": [
+                        {
+                            "title": "正弦波",
+                            "unit": "",
+                            "value": "@1"
+                        },
+                        {
+                            "title": "余弦波",
+                            "unit": "",
+                            "value": "@2"
+                        }
+                    ]
+                },
+                {
+                    "title": "时间",
+                    "type": "number",
+                    "value": "@3",
+                    "unit": "s"
+                }
+            ]
+        }
+    ],
+    "frameParser": "
+        function parse(frame) {
+            return frame.split(',');
+        }
+    "
+} 
