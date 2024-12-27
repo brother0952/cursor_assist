@@ -13,7 +13,7 @@ int main() {
     signal(SIGINT, signalHandler);
     
     // 创建串口记录器
-    SerialLogger logger("COM6", 500000, 3.0);  // 5ms空闲阈值
+    SerialLogger logger("COM6", 500000, 5.0);  // 5ms空闲阈值
     
     if (!logger.start()) {
         return 1;

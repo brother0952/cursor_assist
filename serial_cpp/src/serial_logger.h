@@ -56,4 +56,11 @@ private:
     std::string getCurrentTimestamp();
     bool openSerialPort();
     void closeSerialPort();
+
+    LARGE_INTEGER freq_;  // 性能计数器频率
+    LARGE_INTEGER start_time_;  // 启动时间点
+    std::atomic<uint32_t> sequence_number_{0};
+
+    OVERLAPPED read_overlapped_{0};  // 添加异步I/O结构
+    HANDLE read_event_;              // 添加事件句柄
 }; 

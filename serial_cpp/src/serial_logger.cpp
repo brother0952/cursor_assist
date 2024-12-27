@@ -26,10 +26,21 @@ SerialLogger::SerialLogger(const std::string& port, int baudrate, double idle_th
     
     // 预分配缓冲区
     current_frame_.reserve(BUFFER_SIZE);
+    
+    // 初始化性能计数器
+    QueryPerformanceFrequency(&freq_);
+    QueryPerformanceCounter(&start_time_);
+    
+    // 创建事件句柄
+    read_event_ = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+    read_overlapped_.hEvent = read_event_;
 }
 
 SerialLogger::~SerialLogger() {
     stop();
+    if (read_event_) {
+        CloseHandle(read_event_);
+    }
 }
 
 bool SerialLogger::start() {
@@ -76,37 +87,67 @@ void SerialLogger::stop() {
 }
 
 void SerialLogger::readTask() {
-    std::vector<uint8_t> buffer(BUFFER_SIZE);
+    std::vector<uint8_t> buffer(64);
+    std::vector<std::pair<std::string, std::vector<uint8_t>>> batch;
     DWORD bytes_read;
     
     last_receive_time_ = std::chrono::steady_clock::now();
     
     while (is_running_) {
-        BOOL success = ReadFile(serial_handle_, buffer.data(), buffer.size(), &bytes_read, nullptr);
+        // 开始异步读取
+        BOOL read_result = ReadFile(
+            serial_handle_,
+            buffer.data(),
+            buffer.size(),
+            nullptr,  // 异步操作不使用这个参数
+            &read_overlapped_
+        );
         
-        if (success && bytes_read > 0) {
-            auto current_time = std::chrono::steady_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                current_time - last_receive_time_).count();
-            
-            // 检查空闲时间
-            if (!current_frame_.empty() && elapsed >= idle_threshold_ms_) {
-                std::string timestamp = getCurrentTimestamp();
-                
-                std::lock_guard<std::mutex> lock(queue_mutex_);
-                data_queue_.push(std::make_pair(timestamp, current_frame_));
-                queue_cv_.notify_one();
-                
-                current_frame_.clear();
-            }
-            
-            // 添加新数据
-            current_frame_.insert(current_frame_.end(), buffer.data(), buffer.data() + bytes_read);
-            last_receive_time_ = current_time;
+        DWORD error = GetLastError();
+        if (!read_result && error != ERROR_IO_PENDING) {
+            std::cerr << "读取失败: " << error << std::endl;
+            break;
         }
         
-        // 短暂休眠
-        std::this_thread::sleep_for(std::chrono::microseconds(100));
+        // 等待读取完成
+        DWORD wait_result = WaitForSingleObject(read_event_, 100);  // 100ms超时
+        if (wait_result == WAIT_OBJECT_0) {
+            // 获取实际读取的字节数
+            if (GetOverlappedResult(serial_handle_, &read_overlapped_, &bytes_read, FALSE)) {
+                if (bytes_read > 0) {
+                    for (DWORD i = 0; i < bytes_read; ++i) {
+                        current_frame_.push_back(buffer[i]);
+                        
+                        if (buffer[i] == '\n') {
+                            batch.emplace_back(getCurrentTimestamp(), current_frame_);
+                            current_frame_.clear();
+                            last_receive_time_ = std::chrono::steady_clock::now();
+                        }
+                    }
+                    
+                    if (!batch.empty()) {
+                        std::lock_guard<std::mutex> lock(queue_mutex_);
+                        for (auto& item : batch) {
+                            data_queue_.push(std::move(item));
+                        }
+                        queue_cv_.notify_one();
+                        batch.clear();
+                    }
+                }
+            }
+            
+            // 重置事件，准备下一次读取
+            ResetEvent(read_event_);
+            
+            // 重置overlapped结构的偏移量
+            read_overlapped_.Offset = 0;
+            read_overlapped_.OffsetHigh = 0;
+        }
+        else if (wait_result == WAIT_TIMEOUT) {
+            // 超时，取消当前的I/O操作
+            CancelIo(serial_handle_);
+            continue;
+        }
     }
 }
 
@@ -135,28 +176,43 @@ void SerialLogger::writeTask() {
 }
 
 std::string SerialLogger::getCurrentTimestamp() {
-    auto now = std::chrono::system_clock::now();
-    auto now_t = std::chrono::system_clock::to_time_t(now);
-    auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        now.time_since_epoch()) % 1000;
+    static std::mutex timestamp_mutex;
+    std::lock_guard<std::mutex> lock(timestamp_mutex);
+    
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    
+    // 计算从启动开始的时间（秒和纳秒）
+    double elapsed = static_cast<double>(now.QuadPart - start_time_.QuadPart) / freq_.QuadPart;
+    uint64_t seconds = static_cast<uint64_t>(elapsed);
+    uint64_t nanos = static_cast<uint64_t>((elapsed - seconds) * 1000000000);
+    
+    // 获取系统时间作为基准
+    auto sys_time = std::chrono::system_clock::now();
+    auto sys_time_t = std::chrono::system_clock::to_time_t(sys_time);
+    
+    // 获取序列号
+    uint32_t seq = sequence_number_++;
     
     std::stringstream ss;
-    ss << std::put_time(std::localtime(&now_t), "%Y-%m-%d %H:%M:%S")
-       << "." << std::setw(3) << std::setfill('0') << now_ms.count();
+    ss << std::put_time(std::localtime(&sys_time_t), "%Y-%m-%d %H:%M:%S")
+       << "." << std::setw(9) << std::setfill('0') << nanos
+       << "_" << std::setw(4) << std::setfill('0') << (seq % 10000)
+       << " (" << std::fixed << std::setprecision(3) << elapsed * 1000 << "ms)";  // 添加相对时间
     
     return ss.str();
 }
 
 bool SerialLogger::openSerialPort() {
+    // 打开串口
     std::string port_name = "\\\\.\\" + port_;
-    
     serial_handle_ = CreateFileA(
         port_name.c_str(),
         GENERIC_READ,
         0,
         nullptr,
         OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
+        FILE_FLAG_OVERLAPPED,  // 使用异步I/O
         nullptr
     );
     
@@ -165,36 +221,56 @@ bool SerialLogger::openSerialPort() {
         return false;
     }
     
+    // 设置较小的缓冲区
+    if (!SetupComm(serial_handle_, 64, 64)) {
+        std::cerr << "设置串口缓冲区失败" << std::endl;
+        CloseHandle(serial_handle_);
+        return false;
+    }
+    
+    // 配置串口参数
     DCB dcb = {0};
     dcb.DCBlength = sizeof(DCB);
     
     if (!GetCommState(serial_handle_, &dcb)) {
-        std::cerr << "无法获取串口配置" << std::endl;
+        std::cerr << "获取串口配置失败" << std::endl;
         CloseHandle(serial_handle_);
         return false;
     }
     
     dcb.BaudRate = baudrate_;
     dcb.ByteSize = 8;
-    dcb.Parity = NOPARITY;
     dcb.StopBits = ONESTOPBIT;
+    dcb.Parity = NOPARITY;
+    dcb.fBinary = TRUE;
+    dcb.fDtrControl = DTR_CONTROL_DISABLE;
+    dcb.fRtsControl = RTS_CONTROL_DISABLE;
+    dcb.fOutX = FALSE;
+    dcb.fInX = FALSE;
+    dcb.fErrorChar = FALSE;
+    dcb.fNull = FALSE;
+    dcb.fAbortOnError = FALSE;
     
     if (!SetCommState(serial_handle_, &dcb)) {
-        std::cerr << "无法设置串口参数" << std::endl;
+        std::cerr << "设置串口配置失败" << std::endl;
         CloseHandle(serial_handle_);
         return false;
     }
     
+    // 设置超时参数
     COMMTIMEOUTS timeouts = {0};
-    timeouts.ReadIntervalTimeout = 1;
-    timeouts.ReadTotalTimeoutConstant = 0;
+    timeouts.ReadIntervalTimeout = MAXDWORD;  // 立即返回
     timeouts.ReadTotalTimeoutMultiplier = 0;
+    timeouts.ReadTotalTimeoutConstant = 0;
     
     if (!SetCommTimeouts(serial_handle_, &timeouts)) {
-        std::cerr << "无法设置串口超时" << std::endl;
+        std::cerr << "设置超时参数失败" << std::endl;
         CloseHandle(serial_handle_);
         return false;
     }
+    
+    // 清空缓冲区
+    PurgeComm(serial_handle_, PURGE_RXCLEAR);
     
     return true;
 }

@@ -42,18 +42,47 @@ void SerialSender::stop() {
 
 void SerialSender::sendTask() {
     // 测试数据
-    const std::string test_data = "ATasdfasadfasdfsgsdgsdfeXXX 3213412 fsff";
+    const std::string test_data = "ATasdfasadfasdfsgsdgsdfeXXX 3213412 fsff\n";
     DWORD bytes_written;
+    
+    // 高精度定时器初始化
+    LARGE_INTEGER freq, start, now;
+    QueryPerformanceFrequency(&freq);
+    double period = (interval_ms_ * freq.QuadPart) / 1000.0;
+    
+    // 设置线程优先级
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+    
+    // 初始时间点
+    QueryPerformanceCounter(&start);
+    uint64_t target_count = start.QuadPart;
     
     while (is_running_) {
         // 发送数据
         if (!WriteFile(serial_handle_, test_data.c_str(), test_data.length(), &bytes_written, nullptr)) {
-            std::cerr << "发送失败: " << GetLastError() << std::endl;
+            std::wcerr << L"发送失败: " << GetLastError() << std::endl;
             break;
         }
         
-        // 等待指定时间
-        std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms_));
+        // 确保数据完全发送
+        FlushFileBuffers(serial_handle_);
+        
+        // 计算下一个目标时间点
+        target_count += static_cast<uint64_t>(period);
+        
+        // 精确等待
+        do {
+            QueryPerformanceCounter(&now);
+            // 让出一小段CPU时间，避免过度占用
+            if ((target_count - now.QuadPart) > period * 0.002) {  // 如果还有超过0.2%的等待时间
+                Sleep(0);
+            }
+        } while (now.QuadPart < target_count);
+        
+        // 如果严重滞后，重新同步
+        if (now.QuadPart > target_count + static_cast<uint64_t>(period * 2)) {
+            target_count = now.QuadPart;
+        }
     }
 }
 
@@ -70,6 +99,13 @@ bool SerialSender::openSerialPort() {
                                
     if (serial_handle_ == INVALID_HANDLE_VALUE) {
         std::cerr << "无法打开串口: " << port_ << std::endl;
+        return false;
+    }
+    
+    // 设置较小的缓冲区
+    if (!SetupComm(serial_handle_, 64, 64)) {
+        std::cerr << "设置串口缓冲区失败" << std::endl;
+        CloseHandle(serial_handle_);
         return false;
     }
     
@@ -94,16 +130,19 @@ bool SerialSender::openSerialPort() {
         return false;
     }
     
-    // 设置超时
+    // 设置超时参数，确保立即发送
     COMMTIMEOUTS timeouts = {0};
-    timeouts.WriteTotalTimeoutConstant = 50;
-    timeouts.WriteTotalTimeoutMultiplier = 10;
+    timeouts.WriteTotalTimeoutConstant = 1;
+    timeouts.WriteTotalTimeoutMultiplier = 0;
     
     if (!SetCommTimeouts(serial_handle_, &timeouts)) {
         std::cerr << "设置超时参数失败" << std::endl;
         CloseHandle(serial_handle_);
         return false;
     }
+    
+    // 清空缓冲区
+    PurgeComm(serial_handle_, PURGE_TXCLEAR | PURGE_RXCLEAR);
     
     return true;
 }
