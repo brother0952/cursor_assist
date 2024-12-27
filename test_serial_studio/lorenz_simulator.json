@@ -1,0 +1,46 @@
+{
+    "frameFormat": {
+        "startsWith": "",
+        "endsWith": "",
+        "format": "csv"
+    },
+    "title": "Lorenz吸引子",
+    "groups": [
+        {
+            "datasets": [
+                {
+                    "title": "X",
+                    "units": "",
+                    "value": "@1",
+                    "graph": true,
+                    "max": 20,
+                    "min": -20,
+                    "widget": "",
+                    "xAxis": 2
+                },
+                {
+                    "title": "Y",
+                    "units": "",
+                    "value": "@2",
+                    "graph": true,
+                    "max": 30,
+                    "min": -30,
+                    "widget": "",
+                    "xAxis": 3
+                },
+                {
+                    "title": "Z",
+                    "units": "",
+                    "value": "@3",
+                    "graph": true,
+                    "max": 50,
+                    "min": 0,
+                    "widget": "",
+                    "xAxis": 1
+                }
+            ],
+            "title": "Values",
+            "widget": "multiplot"
+        }
+    ]
+} 

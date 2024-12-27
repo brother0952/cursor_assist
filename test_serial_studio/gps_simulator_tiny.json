@@ -1,0 +1,34 @@
+{
+    "frameFormat": {
+        "startsWith": "$",
+        "endsWith": ";",
+        "format": "csv"
+    },
+    "title": "GPS模拟器",
+    "groups": [
+        {
+            "title": "GPS地图",
+            "widget": "map",
+            "datasets": [
+                {
+                    "title": "纬度",
+                    "units": "°",
+                    "value": "@1",
+                    "widget": "lat"
+                },
+                {
+                    "title": "经度",
+                    "units": "°",
+                    "value": "@2",
+                    "widget": "lon"
+                },
+                {
+                    "title": "高度",
+                    "units": "m",
+                    "value": "@3",
+                    "widget": "alt"
+                }
+            ]
+        }
+    ]
+} 

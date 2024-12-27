@@ -1,0 +1,78 @@
+{
+    "frameFormat": {
+        "startsWith": "$",
+        "endsWith": ";",
+        "format": "csv"
+    },
+    "title": "MPU6050模拟器",
+    "groups": [
+        {
+            "title": "加速度计",
+            "widget": "accelerometer",
+            "datasets": [
+                {
+                    "title": "加速度 X",
+                    "units": "m/s²",
+                    "value": "@1",
+                    "widget": "x",
+                    "graph": true
+                },
+                {
+                    "title": "加速度 Y",
+                    "units": "m/s²",
+                    "value": "@2",
+                    "widget": "y",
+                    "graph": true
+                },
+                {
+                    "title": "加速度 Z",
+                    "units": "m/s²",
+                    "value": "@3",
+                    "widget": "z",
+                    "graph": true
+                }
+            ]
+        },
+        {
+            "title": "陀螺仪",
+            "widget": "gyro",
+            "datasets": [
+                {
+                    "title": "角速度 X",
+                    "units": "deg/s",
+                    "value": "@4",
+                    "widget": "x",
+                    "graph": true
+                },
+                {
+                    "title": "角速度 Y",
+                    "units": "deg/s",
+                    "value": "@5",
+                    "widget": "y",
+                    "graph": true
+                },
+                {
+                    "title": "角速度 Z",
+                    "units": "deg/s",
+                    "value": "@6",
+                    "widget": "z",
+                    "graph": true
+                }
+            ]
+        },
+        {
+            "title": "温度",
+            "datasets": [
+                {
+                    "title": "温度",
+                    "units": "°C",
+                    "value": "@7",
+                    "widget": "bar",
+                    "min": 0,
+                    "max": 100,
+                    "alarm": 40
+                }
+            ]
+        }
+    ]
+} 

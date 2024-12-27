@@ -1,0 +1,69 @@
+{
+    "frameFormat": {
+        "startsWith": "$",
+        "endsWith": ";",
+        "format": "hex"
+    },
+    "title": "模拟ADC数据",
+    "groups": [
+        {
+            "title": "ADC数据",
+            "datasets": [
+                {
+                    "title": "ADC 0",
+                    "units": "Volts",
+                    "value": "@1",
+                    "min": 0,
+                    "max": 5
+                },
+                {
+                    "title": "ADC 1",
+                    "units": "Volts",
+                    "value": "@2",
+                    "min": 0,
+                    "max": 5
+                },
+                {
+                    "title": "ADC 2",
+                    "units": "Volts",
+                    "value": "@3",
+                    "min": 0,
+                    "max": 5
+                },
+                {
+                    "title": "ADC 3",
+                    "units": "Volts",
+                    "value": "@4",
+                    "min": 0,
+                    "max": 5
+                },
+                {
+                    "title": "ADC 4",
+                    "units": "Volts",
+                    "value": "@5",
+                    "min": 0,
+                    "max": 5
+                },
+                {
+                    "title": "ADC 5",
+                    "units": "Volts",
+                    "value": "@6",
+                    "min": 0,
+                    "max": 5
+                }
+            ],
+            "widget": "multiplot"
+        }
+    ],
+    "frameParser": "
+        function parse(frame) {
+            let dataArray = [];
+            for (let i = 0; i < frame.length; i += 2) {
+                let hexByte = frame.substring(i, i + 2);
+                let decimalValue = parseInt(hexByte, 16);
+                dataArray.push(decimalValue * 5.0 / 255);
+            }
+            return dataArray;
+        }
+    "
+} 
