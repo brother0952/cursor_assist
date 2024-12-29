@@ -95,7 +95,6 @@ void SerialLogger::stop() {
 
 void SerialLogger::readTask() {
     std::vector<uint8_t> buffer(64);
-    std::vector<std::pair<std::string, std::vector<uint8_t>>> batch;
     DWORD bytes_read;
     
     last_receive_time_ = std::chrono::steady_clock::now();
@@ -117,7 +116,7 @@ void SerialLogger::readTask() {
         }
         
         // 等待读取完成
-        DWORD wait_result = WaitForSingleObject(read_event_, 100);  // 100ms超时
+        DWORD wait_result = WaitForSingleObject(read_event_, 1);  // 减小等待时间到1ms
         if (wait_result == WAIT_OBJECT_0) {
             // 获取实际读取的字节数
             if (GetOverlappedResult(serial_handle_, &read_overlapped_, &bytes_read, FALSE)) {
@@ -126,28 +125,17 @@ void SerialLogger::readTask() {
                     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
                         current_time - last_receive_time_).count();
                     
-                    // 检查是否超过空闲阈值
-                    if (elapsed >= idle_threshold_ms_) {
-                        // 如果有未处理的数据，先保存
-                        if (!current_frame_.empty()) {
-                            batch.emplace_back(getCurrentTimestamp(), current_frame_);
-                            current_frame_.clear();
-                        }
+                    // 如果超过空闲阈值且有数据，保存当前帧
+                    if (elapsed >= idle_threshold_ms_ && !current_frame_.empty()) {
+                        std::lock_guard<std::mutex> lock(queue_mutex_);
+                        data_queue_.push(std::make_pair(getCurrentTimestamp(), current_frame_));
+                        queue_cv_.notify_one();
+                        current_frame_.clear();
                     }
                     
                     // 添加新数据
                     current_frame_.insert(current_frame_.end(), buffer.data(), buffer.data() + bytes_read);
                     last_receive_time_ = current_time;
-                    
-                    // 提交批量数据
-                    if (!batch.empty()) {
-                        std::lock_guard<std::mutex> lock(queue_mutex_);
-                        for (auto& item : batch) {
-                            data_queue_.push(std::move(item));
-                        }
-                        queue_cv_.notify_one();
-                        batch.clear();
-                    }
                 }
             }
             
@@ -156,21 +144,20 @@ void SerialLogger::readTask() {
             read_overlapped_.Offset = 0;
             read_overlapped_.OffsetHigh = 0;
         }
-        else if (wait_result == WAIT_TIMEOUT) {
-            // 超时检查
-            auto current_time = std::chrono::steady_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                current_time - last_receive_time_).count();
+        
+        // 检查空闲超时
+        auto current_time = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            current_time - last_receive_time_).count();
+        
+        // 如果超过空闲阈值且有数据，保存当前帧
+        if (elapsed >= idle_threshold_ms_ && !current_frame_.empty()) {
+            std::lock_guard<std::mutex> lock(queue_mutex_);
+            data_queue_.push(std::make_pair(getCurrentTimestamp(), current_frame_));
+            queue_cv_.notify_one();
+            current_frame_.clear();
             
-            // 如果超过空闲阈值且有数据，保存当前帧
-            if (elapsed >= idle_threshold_ms_ && !current_frame_.empty()) {
-                std::lock_guard<std::mutex> lock(queue_mutex_);
-                data_queue_.push(std::make_pair(getCurrentTimestamp(), current_frame_));
-                queue_cv_.notify_one();
-                current_frame_.clear();
-            }
-            
-            // 取消当前的I/O操作
+            // 取消当前的I/O操作并重新开始
             CancelIo(serial_handle_);
             continue;
         }

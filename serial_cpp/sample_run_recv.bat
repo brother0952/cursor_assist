@@ -8,7 +8,6 @@ if not exist "build\serial_logger.exe" (
 )
 
 REM 运行程序
-@REM build\serial_logger.exe -p COM6 -b 500000 -i 2.5 -o my_log.txt
-build\serial_sender.exe -p COM6 -b 500000 -i 4.0 -o my_log.txt
-
+@REM build\serial_logger.exe -p COM6 -b 500000 -i 4.0 -o my_log.txt
+build\serial_logger.exe -p COM6 -b 256000 -i 4.0 -o my_log.txt
 pause 
