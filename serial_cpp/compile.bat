@@ -19,9 +19,7 @@ g++ -std=c++17 ^
     -I..\src ^
     -static-libgcc ^
     -static-libstdc++ ^
-    -D_WIN32_WINNT=0x0601 ^
-    -DUNICODE ^
-    -D_UNICODE
+    -D_WIN32_WINNT=0x0601
 
 :: 编译发送程序
 echo 编译发送程序...
@@ -32,9 +30,7 @@ g++ -std=c++17 ^
     -I..\src ^
     -static-libgcc ^
     -static-libstdc++ ^
-    -D_WIN32_WINNT=0x0601 ^
-    -DUNICODE ^
-    -D_UNICODE
+    -D_WIN32_WINNT=0x0601
 
 :: 检查编译结果
 if %ERRORLEVEL% EQU 0 (

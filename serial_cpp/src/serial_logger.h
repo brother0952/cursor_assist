@@ -12,7 +12,9 @@
 
 class SerialLogger {
 public:
-    SerialLogger(const std::string& port, int baudrate, double idle_threshold_ms = 5.0);
+    SerialLogger(const std::string& port, int baudrate, 
+                 double idle_threshold_ms = 3.0,
+                 const std::string& output_file = "");
     ~SerialLogger();
 
     bool start();

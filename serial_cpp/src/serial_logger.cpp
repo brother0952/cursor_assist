@@ -7,22 +7,29 @@
 #include <fcntl.h>
 #include <io.h>
 
-SerialLogger::SerialLogger(const std::string& port, int baudrate, double idle_threshold_ms)
+SerialLogger::SerialLogger(const std::string& port, int baudrate, 
+                         double idle_threshold_ms,
+                         const std::string& output_file)
     : port_(port), baudrate_(baudrate), idle_threshold_ms_(idle_threshold_ms),
       serial_handle_(INVALID_HANDLE_VALUE), is_running_(false) {
     // 设置控制台输出编码为 UTF-8
     SetConsoleOutputCP(CP_UTF8);
     _setmode(_fileno(stdout), _O_U8TEXT);
     
-    // 创建日志目录
-    _mkdir("logs");
-    
-    // 生成日志文件名
-    auto now = std::chrono::system_clock::now();
-    auto now_t = std::chrono::system_clock::to_time_t(now);
-    std::stringstream ss;
-    ss << "logs/serial_log_" << std::put_time(std::localtime(&now_t), "%Y%m%d_%H%M%S") << ".txt";
-    log_file_ = ss.str();
+    // 如果指定了输出文件名，则使用它
+    if (!output_file.empty()) {
+        log_file_ = output_file;
+    } else {
+        // 创建日志目录
+        _mkdir("logs");
+        
+        // 生成默认日志文件名
+        auto now = std::chrono::system_clock::now();
+        auto now_t = std::chrono::system_clock::to_time_t(now);
+        std::stringstream ss;
+        ss << "logs/serial_log_" << std::put_time(std::localtime(&now_t), "%Y%m%d_%H%M%S") << ".txt";
+        log_file_ = ss.str();
+    }
     
     // 预分配缓冲区
     current_frame_.reserve(BUFFER_SIZE);
@@ -99,7 +106,7 @@ void SerialLogger::readTask() {
             serial_handle_,
             buffer.data(),
             buffer.size(),
-            nullptr,  // 异步操作不使用这个参数
+            nullptr,
             &read_overlapped_
         );
         
@@ -115,16 +122,24 @@ void SerialLogger::readTask() {
             // 获取实际读取的字节数
             if (GetOverlappedResult(serial_handle_, &read_overlapped_, &bytes_read, FALSE)) {
                 if (bytes_read > 0) {
-                    for (DWORD i = 0; i < bytes_read; ++i) {
-                        current_frame_.push_back(buffer[i]);
-                        
-                        if (buffer[i] == '\n') {
+                    auto current_time = std::chrono::steady_clock::now();
+                    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        current_time - last_receive_time_).count();
+                    
+                    // 检查是否超过空闲阈值
+                    if (elapsed >= idle_threshold_ms_) {
+                        // 如果有未处理的数据，先保存
+                        if (!current_frame_.empty()) {
                             batch.emplace_back(getCurrentTimestamp(), current_frame_);
                             current_frame_.clear();
-                            last_receive_time_ = std::chrono::steady_clock::now();
                         }
                     }
                     
+                    // 添加新数据
+                    current_frame_.insert(current_frame_.end(), buffer.data(), buffer.data() + bytes_read);
+                    last_receive_time_ = current_time;
+                    
+                    // 提交批量数据
                     if (!batch.empty()) {
                         std::lock_guard<std::mutex> lock(queue_mutex_);
                         for (auto& item : batch) {
@@ -138,13 +153,24 @@ void SerialLogger::readTask() {
             
             // 重置事件，准备下一次读取
             ResetEvent(read_event_);
-            
-            // 重置overlapped结构的偏移量
             read_overlapped_.Offset = 0;
             read_overlapped_.OffsetHigh = 0;
         }
         else if (wait_result == WAIT_TIMEOUT) {
-            // 超时，取消当前的I/O操作
+            // 超时检查
+            auto current_time = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                current_time - last_receive_time_).count();
+            
+            // 如果超过空闲阈值且有数据，保存当前帧
+            if (elapsed >= idle_threshold_ms_ && !current_frame_.empty()) {
+                std::lock_guard<std::mutex> lock(queue_mutex_);
+                data_queue_.push(std::make_pair(getCurrentTimestamp(), current_frame_));
+                queue_cv_.notify_one();
+                current_frame_.clear();
+            }
+            
+            // 取消当前的I/O操作
             CancelIo(serial_handle_);
             continue;
         }
@@ -195,11 +221,14 @@ std::string SerialLogger::getCurrentTimestamp() {
     uint32_t seq = sequence_number_++;
     
     std::stringstream ss;
+    // ss << std::put_time(std::localtime(&sys_time_t), "%Y-%m-%d %H:%M:%S")
+    //    << "." << std::setw(9) << std::setfill('0') << nanos
+    //    << "_" << std::setw(4) << std::setfill('0') << (seq % 10000)
+    //    << " (" << std::fixed << std::setprecision(3) << elapsed * 1000 << "ms)";  // 添加相对时间
     ss << std::put_time(std::localtime(&sys_time_t), "%Y-%m-%d %H:%M:%S")
-       << "." << std::setw(9) << std::setfill('0') << nanos
-       << "_" << std::setw(4) << std::setfill('0') << (seq % 10000)
-       << " (" << std::fixed << std::setprecision(3) << elapsed * 1000 << "ms)";  // 添加相对时间
-    
+       << "." << std::setw(3) << std::setfill('0') << int(nanos/1000000);
+       
+
     return ss.str();
 }
 

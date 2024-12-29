@@ -41,8 +41,8 @@ void SerialSender::stop() {
 }
 
 void SerialSender::sendTask() {
-    // 测试数据
-    const std::string test_data = "ATasdfasadfasdfsgsdgsdfeXXX 3213412 fsff\n";
+    // 测试数据 - 去掉换行符
+    const std::string test_data = "ATasdfasadfasdfsgsdgsdfeXXX 3213412 fsff";
     DWORD bytes_written;
     
     // 高精度定时器初始化
@@ -73,8 +73,7 @@ void SerialSender::sendTask() {
         // 精确等待
         do {
             QueryPerformanceCounter(&now);
-            // 让出一小段CPU时间，避免过度占用
-            if ((target_count - now.QuadPart) > period * 0.002) {  // 如果还有超过0.2%的等待时间
+            if ((target_count - now.QuadPart) > period * 0.002) {
                 Sleep(0);
             }
         } while (now.QuadPart < target_count);
