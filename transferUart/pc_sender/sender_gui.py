@@ -6,16 +6,20 @@ import os
 from crypto import Crypto
 import threading
 import time
+from config_manager import ConfigManager
 
 SECRET_KEY = b"MySecretKey12345"  # 16字节密钥
 BAUD_RATE = "115200"
-CHUNK_SIZE = 4096
+CHUNK_SIZE = 32768  # 或 65536，根据实际测试选择最佳值
 
 class FileSenderGUI:
     def __init__(self, use_encryption=False):
         self.root = tk.Tk()
         self.root.title("文件发送器")
         self.root.geometry("400x300")
+        
+        # 加载配置
+        self.config = ConfigManager("sender_config.json")
         
         if use_encryption:
             self.crypto = Crypto(SECRET_KEY)
@@ -37,7 +41,7 @@ class FileSenderGUI:
         port_row = ttk.Frame(port_frame)
         port_row.pack(fill=tk.X)
         ttk.Label(port_row, text="串口:").pack(side=tk.LEFT, padx=2)
-        self.com_var = tk.StringVar()
+        self.com_var = tk.StringVar(value=self.config.get("port", ""))
         self.com_box = ttk.Combobox(port_row, textvariable=self.com_var, width=15)
         self.refresh_ports()
         self.com_box.pack(side=tk.LEFT, padx=2)
@@ -47,11 +51,15 @@ class FileSenderGUI:
         baud_row = ttk.Frame(port_frame)
         baud_row.pack(fill=tk.X, pady=2)
         ttk.Label(baud_row, text="波特率:").pack(side=tk.LEFT, padx=2)
-        self.baud_var = tk.StringVar(value=BAUD_RATE)
+        self.baud_var = tk.StringVar(value=self.config.get("baudrate", BAUD_RATE))
         self.baud_box = ttk.Combobox(baud_row, textvariable=self.baud_var,
                                     values=["9600", "115200", "256000", "460800", "921600"],
                                     width=15)
         self.baud_box.pack(side=tk.LEFT, padx=2)
+        
+        # 添加配置变更监听
+        self.com_var.trace('w', self.on_port_change)
+        self.baud_var.trace('w', self.on_baudrate_change)
         
         # 文件选择框架
         file_frame = ttk.LabelFrame(main_frame, text="文件", padding="5")
@@ -84,65 +92,85 @@ class FileSenderGUI:
         self.com_box['values'] = [port.device for port in serial.tools.list_ports.comports()]
         
     def select_file(self):
-        filename = filedialog.askopenfilename()
+        # 使用上次的目录
+        initial_dir = self.config.get("last_directory", "")
+        filename = filedialog.askopenfilename(initialdir=initial_dir)
         if filename:
             self.filename = filename
             self.file_label.config(text=os.path.basename(filename))
+            # 保存当前目录
+            self.config.set("last_directory", os.path.dirname(filename))
             
     def send_file(self):
         try:
             print(f"开始发送文件: {self.filename}")
             print(f"串口: {self.com_var.get()}, 波特率: {self.baud_var.get()}")
             
-            # 使用与接收端相同的串口配置
             with serial.Serial(
                 self.com_var.get(), 
                 int(self.baud_var.get()), 
-                timeout=1,
-                write_timeout=1,
-                inter_byte_timeout=0.1
+                timeout=2,        # 增加超时时间
+                write_timeout=2,  # 增加写超时
+                xonxoff=False,
+                rtscts=False,
+                dsrdtr=False
             ) as ser:
-                # 设置RTS/CTS流控
                 ser.rts = True
                 ser.dtr = True
+                time.sleep(0.5)
+                ser.reset_input_buffer()
+                ser.reset_output_buffer()
                 
-                # 等待串口稳定
-                time.sleep(2)
-                
-                # 发送文件名
+                # 发送文件名和大小
                 filename = os.path.basename(self.filename)
-                print(f"发送文件名: {filename}")
-                self._send_encrypted_data(ser, filename.encode())
-                
-                # 发送文件大小
                 file_size = os.path.getsize(self.filename)
-                print(f"发送文件大小: {file_size} bytes")
+                print(f"发送文件信息: {filename} ({file_size} bytes)")
+                self._send_encrypted_data(ser, filename.encode())
                 self._send_encrypted_data(ser, str(file_size).encode())
                 
                 # 发送文件内容
                 sent_size = 0
+                retry_count = 3  # 添加重试机制
+                
                 with open(self.filename, 'rb') as f:
                     while sent_size < file_size:
+                        if self.stop_transfer:
+                            raise Exception("用户中断传输")
+                            
                         chunk = f.read(CHUNK_SIZE)
                         if not chunk:
                             break
                             
-                        print(f"发送数据块: {len(chunk)} bytes")
-                        self._send_encrypted_data(ser, chunk)
+                        # 重试机制
+                        for attempt in range(retry_count):
+                            try:
+                                print(f"\n发送数据块: {len(chunk)} bytes (第{attempt+1}次尝试)")
+                                self._send_encrypted_data(ser, chunk)
+                                
+                                # 等待确认
+                                response = self._receive_encrypted_data(ser)
+                                if response == b"OK":
+                                    break
+                                else:
+                                    print(f"接收到错误响应: {response}")
+                                    if attempt == retry_count - 1:
+                                        raise Exception("重试次数已用完")
+                                    time.sleep(0.5)  # 重试前等待
+                            except Exception as e:
+                                print(f"发送失败: {str(e)}")
+                                if attempt == retry_count - 1:
+                                    raise
+                                time.sleep(0.5)  # 重试前等待
+                                ser.reset_input_buffer()
+                                ser.reset_output_buffer()
                         
-                        # 等待确认
-                        print("等待接收端确认...")
-                        response = self._receive_encrypted_data(ser)
-                        print(f"接收到确认: {response}")
-                        if response != b"OK":
-                            raise Exception(f"接收端返回错误: {response}")
-                            
                         sent_size += len(chunk)
                         progress = (sent_size / file_size) * 100
                         self.progress['value'] = progress
                         self.status_label.config(text=f"已发送: {sent_size}/{file_size} bytes")
                         self.root.update()
                 
+                print("\n文件发送完成")
                 self.status_label.config(text="文件发送成功！")
                 
         except Exception as e:
@@ -150,6 +178,7 @@ class FileSenderGUI:
             self.status_label.config(text=f"错误: {str(e)}")
         finally:
             self.send_button.config(state='normal')
+            self.stop_button.config(state=tk.DISABLED)
             
     def _send_encrypted_data(self, ser, data):
         try:
@@ -238,6 +267,14 @@ class FileSenderGUI:
         
     def run(self):
         self.root.mainloop()
+        
+    def on_port_change(self, *args):
+        """串口变更时保存配置"""
+        self.config.set("port", self.com_var.get())
+        
+    def on_baudrate_change(self, *args):
+        """波特率变更时保存配置"""
+        self.config.set("baudrate", self.baud_var.get())
 
 def main():
     # 可以通过参数控制是否启用加密
