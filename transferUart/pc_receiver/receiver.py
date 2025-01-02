@@ -51,8 +51,9 @@ class FileReceiver:
         baud_row.pack(fill=tk.X, pady=2)
         ttk.Label(baud_row, text="波特率:").pack(side=tk.LEFT, padx=2)
         self.baud_var = tk.StringVar(value=self.config.get("baudrate", "115200"))
+        baud_rates = ["9600", "115200", "256000", "460800", "921600","1000000", "1500000", "2000000", "3000000"]
         self.baud_box = ttk.Combobox(baud_row, textvariable=self.baud_var, 
-                                    values=["9600", "115200", "256000", "460800", "921600"],
+                                    values=baud_rates,
                                     width=15)
         self.baud_box.pack(side=tk.LEFT, padx=2)
         
@@ -86,8 +87,8 @@ class FileReceiver:
         self.stop_current_transfer = False
         
         # 添加配置变更监听
-        self.com_var.trace('w', self.on_port_change)
-        self.baud_var.trace('w', self.on_baudrate_change)
+        self.com_var.trace_add('write', self.on_port_change)
+        self.baud_var.trace_add('write', self.on_baudrate_change)
 
     def refresh_ports(self):
         self.com_box['values'] = [port.device for port in serial.tools.list_ports.comports()]
@@ -170,6 +171,9 @@ class FileReceiver:
         try:
             print("\n等待接收文件...")
             
+            # 记录开始时间
+            start_time = time.time()
+            
             # 接收文件信息
             filename = self._receive_data(ser).decode('utf-8')
             file_size = int(self._receive_data(ser).decode('utf-8'))
@@ -178,21 +182,16 @@ class FileReceiver:
             # 生成保存路径
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             save_path = os.path.join(self.save_dir, f"{timestamp}_{filename}")
-            print(f"保存路径: {save_path}")
-            
-            # 使用临时文件
             temp_path = save_path + ".tmp"
-            received_size = 0
             
+            received_size = 0
             with open(temp_path, 'wb') as f:
                 while received_size < file_size:
                     try:
-                        # 接收数据块
                         data = self._receive_data(ser)
                         if not data:
                             raise Exception("接收到空数据")
                         
-                        # 写入文件
                         f.write(data)
                         received_size += len(data)
                         
@@ -202,7 +201,7 @@ class FileReceiver:
                         # 更新进度
                         progress = (received_size / file_size) * 100
                         self.progress['value'] = progress
-                        self.status_label.config(text=f"进度: {received_size}/{file_size} bytes")
+                        self.status_label.config(text=f"进度: {received_size}/{file_size} bytes ({progress:.1f}%)")
                         self.root.update()
                         
                     except Exception as e:
@@ -213,15 +212,21 @@ class FileReceiver:
                             pass
                         raise
             
+            # 计算传输时间和速度
+            elapsed_time = time.time() - start_time
+            transfer_speed = file_size / (1024 * 1024 * elapsed_time)  # MB/s
+            
             # 接收完成后重命名文件
             os.rename(temp_path, save_path)
-            print("文件接收完成")
-            self.status_label.config(text=f"文件保存成功: {save_path}")
+            print(f"文件接收完成: {save_path}")
+            print(f"传输时间: {elapsed_time:.2f} 秒")
+            print(f"平均速度: {transfer_speed:.2f} MB/s")
+            self.status_label.config(text=f"接收成功! 用时: {elapsed_time:.1f}秒, 速度: {transfer_speed:.1f}MB/s")
+            self.progress['value'] = 100
             
         except Exception as e:
             print(f"接收错误: {str(e)}")
             self.status_label.config(text=f"错误: {str(e)}")
-            # 删除临时文件
             if 'temp_path' in locals() and os.path.exists(temp_path):
                 try:
                     os.remove(temp_path)

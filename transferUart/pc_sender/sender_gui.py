@@ -53,13 +53,13 @@ class FileSenderGUI:
         ttk.Label(baud_row, text="波特率:").pack(side=tk.LEFT, padx=2)
         self.baud_var = tk.StringVar(value=self.config.get("baudrate", BAUD_RATE))
         self.baud_box = ttk.Combobox(baud_row, textvariable=self.baud_var,
-                                    values=["9600", "115200", "256000", "460800", "921600"],
+                                    values=["9600", "115200", "256000", "460800", "921600","1000000", "1500000", "2000000", "3000000"],
                                     width=15)
         self.baud_box.pack(side=tk.LEFT, padx=2)
         
         # 添加配置变更监听
-        self.com_var.trace('w', self.on_port_change)
-        self.baud_var.trace('w', self.on_baudrate_change)
+        self.com_var.trace_add('write', self.on_port_change)
+        self.baud_var.trace_add('write', self.on_baudrate_change)
         
         # 文件选择框架
         file_frame = ttk.LabelFrame(main_frame, text="文件", padding="5")
@@ -106,11 +106,14 @@ class FileSenderGUI:
             print(f"开始发送文件: {self.filename}")
             print(f"串口: {self.com_var.get()}, 波特率: {self.baud_var.get()}")
             
+            # 记录开始时间
+            start_time = time.time()
+            
             with serial.Serial(
                 self.com_var.get(), 
                 int(self.baud_var.get()), 
-                timeout=2,        # 增加超时时间
-                write_timeout=2,  # 增加写超时
+                timeout=2,
+                write_timeout=2,
                 xonxoff=False,
                 rtscts=False,
                 dsrdtr=False
@@ -130,8 +133,6 @@ class FileSenderGUI:
                 
                 # 发送文件内容
                 sent_size = 0
-                retry_count = 3  # 添加重试机制
-                
                 with open(self.filename, 'rb') as f:
                     while sent_size < file_size:
                         if self.stop_transfer:
@@ -141,28 +142,14 @@ class FileSenderGUI:
                         if not chunk:
                             break
                             
-                        # 重试机制
-                        for attempt in range(retry_count):
-                            try:
-                                print(f"\n发送数据块: {len(chunk)} bytes (第{attempt+1}次尝试)")
-                                self._send_encrypted_data(ser, chunk)
-                                
-                                # 等待确认
-                                response = self._receive_encrypted_data(ser)
-                                if response == b"OK":
-                                    break
-                                else:
-                                    print(f"接收到错误响应: {response}")
-                                    if attempt == retry_count - 1:
-                                        raise Exception("重试次数已用完")
-                                    time.sleep(0.5)  # 重试前等待
-                            except Exception as e:
-                                print(f"发送失败: {str(e)}")
-                                if attempt == retry_count - 1:
-                                    raise
-                                time.sleep(0.5)  # 重试前等待
-                                ser.reset_input_buffer()
-                                ser.reset_output_buffer()
+                        print(f"\n发送数据块: {len(chunk)} bytes")
+                        self._send_encrypted_data(ser, chunk)
+                        
+                        # 等待确认
+                        print("等待接收端确认...")
+                        response = self._receive_encrypted_data(ser)
+                        if response != b"OK":
+                            raise Exception(f"接收端返回错误: {response}")
                         
                         sent_size += len(chunk)
                         progress = (sent_size / file_size) * 100
@@ -170,8 +157,14 @@ class FileSenderGUI:
                         self.status_label.config(text=f"已发送: {sent_size}/{file_size} bytes")
                         self.root.update()
                 
-                print("\n文件发送完成")
-                self.status_label.config(text="文件发送成功！")
+                # 计算传输时间和速度
+                elapsed_time = time.time() - start_time
+                transfer_speed = file_size / (1024 * 1024 * elapsed_time)  # MB/s
+                
+                print(f"\n文件发送完成")
+                print(f"传输时间: {elapsed_time:.2f} 秒")
+                print(f"平均速度: {transfer_speed:.2f} MB/s")
+                self.status_label.config(text=f"发送成功! 用时: {elapsed_time:.1f}秒, 速度: {transfer_speed:.1f}MB/s")
                 
         except Exception as e:
             print(f"发送错误: {str(e)}")
