@@ -169,25 +169,32 @@ def create_parameter_window():
 def get_parameters():
     """获取滑动条的参数值"""
     params = {}
-    params['h_tolerance'] = cv2.getTrackbarPos('H_Tolerance(x0.1)', 'Parameters')
-    params['v_tolerance'] = cv2.getTrackbarPos('V_Tolerance(x0.1)', 'Parameters')
-    params['neighbor_threshold'] = cv2.getTrackbarPos('Neighbor_Threshold', 'Parameters')
-    params['row_tolerance'] = cv2.getTrackbarPos('Row_Tolerance', 'Parameters')
-    params['min_spacing'] = cv2.getTrackbarPos('Min_Spacing', 'Parameters')
-    params['max_spacing'] = cv2.getTrackbarPos('Max_Spacing', 'Parameters')
+    # params['h_tolerance'] = cv2.getTrackbarPos('H_Tolerance(x0.1)', 'Parameters')
+    # params['v_tolerance'] = cv2.getTrackbarPos('V_Tolerance(x0.1)', 'Parameters')
+    # params['neighbor_threshold'] = cv2.getTrackbarPos('Neighbor_Threshold', 'Parameters')
+    # params['row_tolerance'] = cv2.getTrackbarPos('Row_Tolerance', 'Parameters')
+    # params['min_spacing'] = cv2.getTrackbarPos('Min_Spacing', 'Parameters')
+    # params['max_spacing'] = cv2.getTrackbarPos('Max_Spacing', 'Parameters')
+    params['h_tolerance'] = 4
+    params['v_tolerance'] = 15
+    params['neighbor_threshold'] = 7
+    params['row_tolerance'] = 10
+    params['min_spacing'] = 12
+    params['max_spacing'] = 47
     return params
 
 def main():
     detector = DefectDetector()
     
     try:
-        image_path = input("请输入图像路径: ")
+        # image_path = input("请输入图像路径: ")
+        image_path = r"D:\git\py_process\opencv_prj\defect\kd3f6nh06a.png"
         image = cv2.imread(image_path)
         if image is None:
             raise Exception("无法读取图像")
         
         # 创建参数调整窗口
-        create_parameter_window()
+        # create_parameter_window()
         
         while True:
             # 获取当前参数
@@ -210,7 +217,7 @@ def main():
             if key == 27:  # ESC键退出
                 break
             elif key == ord('s'):  # 's'键保存结果
-                cv2.imwrite("defect_result.png", result)
+                # cv2.imwrite("defect_result.png", result)
                 print(f"检测到 {len(defects)} 个缺陷")
                 print(f"缺陷位置: {defects}")
                 print(f"当前参数:")
