@@ -2,96 +2,82 @@
 chcp 65001 >nul
 setlocal EnableDelayedExpansion
 
+:: 检查参数
+if "%~1"=="" (
+    echo 用法: compress.bat [视频目录路径]
+    echo 示例: compress.bat D:\Videos
+    exit /b 1
+)
+
+:: 设置路径
 set "FFMPEG=F:\ziliao\ffmpeg\ffmpeg-20181208-6b1c4ce-win32-shared\ffmpeg-20181208-6b1c4ce-win32-shared\bin\ffmpeg.exe"
-set "input_dir=input"
-set "output_dir=output"
+set "target_dir=%~1"
 
-if not exist "%output_dir%" mkdir "%output_dir%"
+:: 检查目录是否存在
+if not exist "%target_dir%" (
+    echo 错误: 目录 "%target_dir%" 不存在
+    exit /b 1
+)
 
-:menu
-echo.
-echo =====================================
-echo           Video Compressor
-echo =====================================
-echo.
-echo  [1] Light Compression (90% quality)
-echo  [2] Medium Compression (80% quality)
-echo  [3] High Compression (70% quality)
-echo  [4] Ultra Compression (60% quality)
-echo  [0] Exit
-echo.
-echo =====================================
-echo.
-
-set /p choice="Select option (0-4): "
-
-if "%choice%"=="0" exit /b
-if "%choice%"=="1" goto quality_90
-if "%choice%"=="2" goto quality_80
-if "%choice%"=="3" goto quality_70
-if "%choice%"=="4" goto quality_60
-goto menu
-
-:quality_90
-set "preset=medium"
-set "quality=23"
-set "bitrate=20M"
-set "suffix=_90"
-goto process
-
-:quality_80
+:: 设置压缩参数（使用中等压缩比例）
 set "preset=medium"
 set "quality=26"
 set "bitrate=15M"
-set "suffix=_80"
-goto process
+set "suffix=_compressed"
 
-:quality_70
-set "preset=medium"
-set "quality=28"
-set "bitrate=10M"
-set "suffix=_70"
-goto process
-
-:quality_60
-set "preset=medium"
-set "quality=30"
-set "bitrate=8M"
-set "suffix=_60"
-goto process
-
-:process
 echo.
-echo Processing videos...
+echo 开始处理视频文件...
+echo 目标目录: %target_dir%
 echo.
 
-for %%i in ("%input_dir%\*.mp4" "%input_dir%\*.avi" "%input_dir%\*.mov") do (
+:: 计数器
+set "processed=0"
+set "skipped=0"
+
+:: 处理所有视频文件
+for %%i in ("%target_dir%\*.mp4" "%target_dir%\*.avi" "%target_dir%\*.mov" "%target_dir%\*.mkv") do (
     if exist "%%i" (
-        echo Processing: %%~nxi
-        set "outfile=%output_dir%\%%~ni%suffix%%%~xi"
-        
-        :: 使用 NVENC 进行压缩
-        "%FFMPEG%" -hwaccel cuda -i "%%i" -c:v h264_nvenc ^
-            -preset %preset% ^
-            -rc:v vbr_hq ^
-            -cq:v %quality% ^
-            -b:v %bitrate% ^
-            -maxrate:v %bitrate% ^
-            -profile:v high ^
-            -rc-lookahead 32 ^
-            -spatial-aq 1 ^
-            -aq-strength 8 ^
-            -c:a aac ^
-            -b:a 128k ^
-            -movflags +faststart ^
-            -y "!outfile!"
-        
-        echo Completed: %%~nxi
-        echo.
+        :: 检查文件名是否已包含压缩标记
+        echo "%%~ni" | findstr /C:"_compressed" >nul
+        if !errorlevel! equ 0 (
+            echo 跳过已压缩文件: %%~nxi
+            set /a "skipped+=1"
+        ) else (
+            echo 正在处理: %%~nxi
+            
+            :: 构建输出文件名（在原目录下创建）
+            set "outfile=%%~dpi%%~ni%suffix%%%~xi"
+            
+            :: 使用 NVENC 进行压缩
+            "%FFMPEG%" -hwaccel cuda -i "%%i" -c:v h264_nvenc ^
+                -preset %preset% ^
+                -rc:v vbr_hq ^
+                -cq:v %quality% ^
+                -b:v %bitrate% ^
+                -maxrate:v %bitrate% ^
+                -profile:v high ^
+                -rc-lookahead 32 ^
+                -spatial-aq 1 ^
+                -aq-strength 8 ^
+                -c:a aac ^
+                -b:a 128k ^
+                -movflags +faststart ^
+                -y "!outfile!"
+            
+            if !errorlevel! equ 0 (
+                echo 完成: %%~nxi
+                set /a "processed+=1"
+            ) else (
+                echo 处理失败: %%~nxi
+                if exist "!outfile!" del "!outfile!"
+            )
+            echo.
+        )
     )
 )
 
-echo All videos processed!
+echo 处理完成！
+echo 成功压缩: !processed! 个文件
+echo 跳过已压缩: !skipped! 个文件
 echo.
-pause
-goto menu 
+pause 
