@@ -1,5 +1,14 @@
 @echo off
+chcp 65001 >nul
 setlocal enabledelayedexpansion
+
+:: 设置 FFmpeg 路径
+set "FFMPEG_PATH=F:\ziliao\ffmpeg\ffmpeg-20181208-6b1c4ce-win32-shared\ffmpeg-20181208-6b1c4ce-win32-shared\bin"
+set "PATH=%FFMPEG_PATH%;%PATH%"
+
+:: 设置控制台字体
+reg add "HKEY_CURRENT_USER\Console" /v "FaceName" /t REG_SZ /d "Consolas" /f >nul
+reg add "HKEY_CURRENT_USER\Console" /v "FontFamily" /t REG_DWORD /d 54 /f >nul
 
 :: 设置输入和输出文件夹
 set "input_dir=input"

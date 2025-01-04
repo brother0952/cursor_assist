@@ -14,59 +14,50 @@ echo =====================================
 echo           Video Compressor
 echo =====================================
 echo.
-echo  [1] GPU - High Quality
-echo  [2] GPU - Medium Quality
-echo  [3] GPU - Low Quality
-echo  [4] CPU - High Quality
-echo  [5] CPU - Medium Quality
+echo  [1] Light Compression (90% quality)
+echo  [2] Medium Compression (80% quality)
+echo  [3] High Compression (70% quality)
+echo  [4] Ultra Compression (60% quality)
 echo  [0] Exit
 echo.
 echo =====================================
 echo.
 
-set /p choice="Select option (0-5): "
+set /p choice="Select option (0-4): "
 
 if "%choice%"=="0" exit /b
-if "%choice%"=="1" goto gpu_high
-if "%choice%"=="2" goto gpu_medium
-if "%choice%"=="3" goto gpu_low
-if "%choice%"=="4" goto cpu_high
-if "%choice%"=="5" goto cpu_medium
+if "%choice%"=="1" goto quality_90
+if "%choice%"=="2" goto quality_80
+if "%choice%"=="3" goto quality_70
+if "%choice%"=="4" goto quality_60
 goto menu
 
-:gpu_high
-set "preset=medium"
-set "quality=18"
-set "suffix=_gpu_hq"
-set "gpu=1"
-goto process
-
-:gpu_medium
+:quality_90
 set "preset=medium"
 set "quality=23"
-set "suffix=_gpu_mq"
-set "gpu=1"
+set "bitrate=20M"
+set "suffix=_90"
 goto process
 
-:gpu_low
-set "preset=fast"
-set "quality=28"
-set "suffix=_gpu_lq"
-set "gpu=1"
+:quality_80
+set "preset=medium"
+set "quality=26"
+set "bitrate=15M"
+set "suffix=_80"
 goto process
 
-:cpu_high
-set "preset=slow"
-set "quality=23"
-set "suffix=_cpu_hq"
-set "gpu=0"
-goto process
-
-:cpu_medium
+:quality_70
 set "preset=medium"
 set "quality=28"
-set "suffix=_cpu_mq"
-set "gpu=0"
+set "bitrate=10M"
+set "suffix=_70"
+goto process
+
+:quality_60
+set "preset=medium"
+set "quality=30"
+set "bitrate=8M"
+set "suffix=_60"
 goto process
 
 :process
@@ -79,11 +70,21 @@ for %%i in ("%input_dir%\*.mp4" "%input_dir%\*.avi" "%input_dir%\*.mov") do (
         echo Processing: %%~nxi
         set "outfile=%output_dir%\%%~ni%suffix%%%~xi"
         
-        if "%gpu%"=="1" (
-            "%FFMPEG%" -hwaccel cuda -i "%%i" -c:v h264_nvenc -preset %preset% -cq %quality% -rc-lookahead 32 -c:a aac -b:a 128k -movflags +faststart -y "!outfile!"
-        ) else (
-            "%FFMPEG%" -i "%%i" -c:v libx264 -crf %quality% -preset %preset% -c:a aac -b:a 128k -movflags +faststart -y "!outfile!"
-        )
+        :: 使用 NVENC 进行压缩
+        "%FFMPEG%" -hwaccel cuda -i "%%i" -c:v h264_nvenc ^
+            -preset %preset% ^
+            -rc:v vbr_hq ^
+            -cq:v %quality% ^
+            -b:v %bitrate% ^
+            -maxrate:v %bitrate% ^
+            -profile:v high ^
+            -rc-lookahead 32 ^
+            -spatial-aq 1 ^
+            -aq-strength 8 ^
+            -c:a aac ^
+            -b:a 128k ^
+            -movflags +faststart ^
+            -y "!outfile!"
         
         echo Completed: %%~nxi
         echo.
