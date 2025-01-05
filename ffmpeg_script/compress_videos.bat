@@ -12,6 +12,28 @@ set "output_dir=output"
 :: 创建输出目录
 if not exist "%output_dir%" mkdir "%output_dir%"
 
+:: 设置FPS控制选项（默认关闭）
+set "control_fps=0"
+
+:fps_menu
+cls
+echo FPS控制设置
+echo =====================================
+echo 当前状态: !control_fps!
+echo [0] 关闭 - 保持原始FPS
+echo [1] 开启 - 60FPS自动降至30FPS
+echo.
+set /p fps_choice="请选择FPS控制模式 (0/1): "
+
+if "!fps_choice!"=="0" (
+    set "control_fps=0"
+) else if "!fps_choice!"=="1" (
+    set "control_fps=1"
+) else (
+    echo 无效选择，使用默认值（关闭）
+    set "control_fps=0"
+)
+
 :: 检查是否支持NVIDIA编码
 set "has_nvidia=0"
 "%FFMPEG%" -hide_banner -encoders > encoders.txt
@@ -197,16 +219,135 @@ for %%i in ("%input_dir%\*.mp4" "%input_dir%\*.avi" "%input_dir%\*.mov") do (
     if exist "%%i" (
         echo 正在处理: %%~nxi
         
+        :: 获取视频FPS
+        for /f "tokens=*" %%f in ('"%FFMPEG%" -i "%%i" 2^>^&1 ^| findstr "fps"') do (
+            set "fps_info=%%f"
+        )
+        :: 提取FPS值
+        for /f "tokens=2 delims=," %%f in ("!fps_info!") do (
+            set "fps_value=%%f"
+        )
+        set "fps_value=!fps_value: fps=!"
+        set /a "fps_num=!fps_value!"
+        
+        echo 原始FPS: !fps_num!
+        
+        :: 获取原始视频的码率（以kbps为单位）
+        for /f "tokens=*" %%b in ('"%FFMPEG%" -i "%%i" 2^>^&1 ^| findstr "bitrate"') do (
+            set "bitrate_info=%%b"
+        )
+        
+        :: 提取码率数值（kbps）
+        for /f "tokens=6 delims=:, " %%b in ("!bitrate_info!") do (
+            set /a "orig_bitrate=%%b"
+        )
+        
+        :: 获取文件大小（以字节为单位）
+        for %%s in ("%%i") do set "orig_size=%%~zs"
+        
+        :: 将码率从kbps转换为Mbps
+        set /a "orig_bitrate_m=orig_bitrate/1000"
+        echo 原始码率: !orig_bitrate_m! Mbps
+        echo 原始大小: !orig_size! 字节
+        
         :: 构建输出文件名
         set "output_file=%output_dir%\%%~ni!suffix!%%~xi"
         
-        :: 根据编码器选择压缩命令
+        :: 根据编码器和原始码率选择压缩策略
         if "!encoder!"=="h264_nvenc" (
             :: GPU编码
-            "%FFMPEG%" -hwaccel cuda -i "%%i" -c:v h264_nvenc -preset !preset! -cq !quality! -rc-lookahead 32 -c:a aac -b:a 128k -movflags +faststart -y "!output_file!"
+            if !orig_bitrate_m! leq 2 (
+                echo 原始码率已经很低，跳过压缩
+                echo.
+                continue
+            ) else (
+                :: 设置目标码率为原始码率的一半，但不超过15Mbps
+                set /a "target_bitrate=orig_bitrate_m/2"
+                if !target_bitrate! gtr 15 set "target_bitrate=15"
+                echo 目标码率: !target_bitrate! Mbps
+                
+                :: 根据FPS控制选项和当前FPS决定是否需要降帧
+                if "!control_fps!"=="1" if !fps_num! geq 50 (
+                    echo 检测到高帧率，降至30FPS
+                    "%FFMPEG%" -hwaccel cuda -i "%%i" -c:v h264_nvenc ^
+                        -preset !preset! ^
+                        -rc:v vbr_hq ^
+                        -cq:v !quality! ^
+                        -b:v !target_bitrate!M ^
+                        -maxrate:v !target_bitrate!M ^
+                        -rc-lookahead 32 ^
+                        -spatial-aq 1 ^
+                        -aq-strength 8 ^
+                        -r 30 ^
+                        -c:a copy ^
+                        -movflags +faststart ^
+                        -y "!output_file!"
+                ) else (
+                    "%FFMPEG%" -hwaccel cuda -i "%%i" -c:v h264_nvenc ^
+                        -preset !preset! ^
+                        -rc:v vbr_hq ^
+                        -cq:v !quality! ^
+                        -b:v !target_bitrate!M ^
+                        -maxrate:v !target_bitrate!M ^
+                        -rc-lookahead 32 ^
+                        -spatial-aq 1 ^
+                        -aq-strength 8 ^
+                        -c:a copy ^
+                        -movflags +faststart ^
+                        -y "!output_file!"
+                )
+            )
         ) else (
             :: CPU编码
-            "%FFMPEG%" -i "%%i" -c:v libx264 -crf !quality! -preset !preset! -c:a aac -b:a 128k -movflags +faststart -y "!output_file!"
+            if !orig_bitrate_m! leq 2 (
+                echo 原始码率已经很低，跳过压缩
+                echo.
+                continue
+            ) else (
+                :: 使用CRF模式，但设置最大码率
+                set /a "target_bitrate=orig_bitrate_m/2"
+                if !target_bitrate! gtr 15 set "target_bitrate=15"
+                echo 目标码率: !target_bitrate! Mbps
+                
+                :: 根据FPS控制选项和当前FPS决定是否需要降帧
+                if "!control_fps!"=="1" if !fps_num! geq 50 (
+                    echo 检测到高帧率，降至30FPS
+                    "%FFMPEG%" -i "%%i" -c:v libx264 ^
+                        -crf !quality! ^
+                        -maxrate:v !target_bitrate!M ^
+                        -bufsize !target_bitrate!M ^
+                        -preset !preset! ^
+                        -r 30 ^
+                        -c:a copy ^
+                        -movflags +faststart ^
+                        -y "!output_file!"
+                ) else (
+                    "%FFMPEG%" -i "%%i" -c:v libx264 ^
+                        -crf !quality! ^
+                        -maxrate:v !target_bitrate!M ^
+                        -bufsize !target_bitrate!M ^
+                        -preset !preset! ^
+                        -c:a copy ^
+                        -movflags +faststart ^
+                        -y "!output_file!"
+                )
+            )
+        )
+        
+        :: 检查压缩结果
+        if exist "!output_file!" (
+            for %%s in ("!output_file!") do set "new_size=%%~zs"
+            echo 新文件大小: !new_size! 字节
+            
+            :: 如果新文件更大，则删除它并保留原始文件
+            if !new_size! gtr !orig_size! (
+                echo 警告：压缩后文件更大，保留原始文件
+                del "!output_file!"
+            ) else (
+                set /a "saved_space=orig_size-new_size"
+                set /a "saved_percent=saved_space*100/orig_size"
+                echo 节省空间: !saved_percent!%%
+            )
         )
             
         echo 完成: %%~nxi

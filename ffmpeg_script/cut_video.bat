@@ -27,17 +27,21 @@ echo 1. 按时间段切割 (指定开始和结束时间)
 echo 2. 按时长切割 (从开始时间切指定时长)
 echo 3. 按时间间隔切割 (将视频分割为等长片段)
 echo 4. 精确帧切割 (指定开始和结束帧)
+echo 5. 剪掉头部 (删除指定时间之前的部分)
+echo 6. 剪掉尾部 (删除指定时间之后的部分)
 echo.
 echo 0. 退出
 echo =====================================
 
-set /p choice="请输入选择 (0-4): "
+set /p choice="请输入选择 (0-6): "
 
 if "%choice%"=="0" goto :eof
 if "%choice%"=="1" goto time_range
 if "%choice%"=="2" goto duration
 if "%choice%"=="3" goto segments
 if "%choice%"=="4" goto frame_range
+if "%choice%"=="5" goto trim_head
+if "%choice%"=="6" goto trim_tail
 
 echo 无效选择，请重试
 pause
@@ -136,6 +140,53 @@ ffmpeg -i "%input_dir%\%input_file%" ^
     -preset fast ^
     -c:a copy ^
     "%output_dir%\cut_%~n1_frame_%start_frame%-%end_frame%%%~x1"
+
+echo.
+echo 切割完成！
+pause
+goto menu
+
+:trim_head
+cls
+echo 剪掉头部
+echo =====================================
+echo 删除指定时间之前的部分
+echo 时间格式: HH:MM:SS 或 HH:MM:SS.xxx
+echo.
+set /p input_file="输入视频文件名 (需放在input文件夹): "
+set /p cut_time="输入要删除到的时间点: "
+
+:: 获取视频总时长
+for /f "tokens=*" %%a in ('ffprobe -v error -show_entries format^=duration -of default^=noprint_wrappers^=1:nokey^=1 "%input_dir%\%input_file%"') do set "duration=%%a"
+
+ffmpeg -i "%input_dir%\%input_file%" ^
+    -ss %cut_time% ^
+    -c:v copy ^
+    -c:a copy ^
+    -avoid_negative_ts 1 ^
+    "%output_dir%\cut_%~n1_from_%cut_time:.=_%%~x1"
+
+echo.
+echo 切割完成！
+pause
+goto menu
+
+:trim_tail
+cls
+echo 剪掉尾部
+echo =====================================
+echo 删除指定时间之后的部分
+echo 时间格式: HH:MM:SS 或 HH:MM:SS.xxx
+echo.
+set /p input_file="输入视频文件名 (需放在input文件夹): "
+set /p cut_time="输入要保留到的时间点: "
+
+ffmpeg -i "%input_dir%\%input_file%" ^
+    -t %cut_time% ^
+    -c:v copy ^
+    -c:a copy ^
+    -avoid_negative_ts 1 ^
+    "%output_dir%\cut_%~n1_to_%cut_time:.=_%%~x1"
 
 echo.
 echo 切割完成！
