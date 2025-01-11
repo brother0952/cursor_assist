@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>诗词 API 测试</title>
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .poem {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>诗词 API 测试</h1>
+        <div class="controls">
+            <button onclick="testLocalPoems()">测试本地诗词</button>
+            <button onclick="testJinrishiciAPI()">测试今日诗词API</button>
+            <button onclick="testFallbackAPI()">测试备用API</button>
+        </div>
+        <div id="status"></div>
+        <div id="poem" class="poem"></div>
+    </div>
+
+    <script>
+        // 本地诗词数据
+        const LOCAL_POEMS = [
+            {
+                content: "床前明月光，疑是地上霜。举头望明月，低头思故乡。",
+                origin: { author: "李白", title: "静夜思" }
+            },
+            {
+                content: "白日依山尽，黄河入海流。欲穷千里目，更上一层楼。",
+                origin: { author: "王之涣", title: "登鹳雀楼" }
+            }
+        ];
+
+        // 显示状态信息
+        function showStatus(message, isError = false) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = isError ? 'error' : 'success';
+        }
+
+        // 显示诗词
+        function displayPoem(poem) {
+            const poemDiv = document.getElementById('poem');
+            poemDiv.innerHTML = `
+                <h3>${poem.origin.title}</h3>
+                <p>${poem.origin.author}</p>
+                <p>${poem.content}</p>
+            `;
+        }
+
+        // 测试本地诗词
+        function testLocalPoems() {
+            try {
+                const poem = LOCAL_POEMS[Math.floor(Math.random() * LOCAL_POEMS.length)];
+                displayPoem(poem);
+                showStatus('本地诗词加载成功');
+            } catch (error) {
+                showStatus('本地诗词加载失败: ' + error.message, true);
+            }
+        }
+
+        // 测试今日诗词API
+        async function testJinrishiciAPI() {
+            try {
+                showStatus('正在加载今日诗词API...');
+                
+                // 动态加载SDK
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://sdk.jinrishici.com/v2/browser/jinrishici.js';
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+
+                // 等待SDK初始化
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // 获取诗词
+                const result = await jinrishici.load();
+                displayPoem(result.data);
+                showStatus('今日诗词API加载成功');
+            } catch (error) {
+                showStatus('今日诗词API加载失败: ' + error.message, true);
+            }
+        }
+
+        // 测试备用API
+        async function testFallbackAPI() {
+            try {
+                showStatus('正在加载备用API...');
+                const response = await fetch('https://v1.jinrishici.com/all.json');
+                const data = await response.json();
+                const poem = {
+                    content: data.content,
+                    origin: {
+                        author: data.author,
+                        title: data.origin
+                    }
+                };
+                displayPoem(poem);
+                showStatus('备用API加载成功');
+            } catch (error) {
+                showStatus('备用API加载失败: ' + error.message, true);
+            }
+        }
+
+        // 初始化时显示一首本地诗词
+        testLocalPoems();
+    </script>
+</body>
+</html> 

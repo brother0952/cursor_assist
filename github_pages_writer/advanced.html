@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>汉字书写学习系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js"></script>
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .animation-controls {
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+        .speed-control {
+            margin: 0 10px;
+            display: inline-flex;
+            align-items: center;
+        }
+        .speed-control label {
+            margin-right: 10px;
+        }
+        .speed-control input {
+            width: 150px;
+        }
+        .speed-value {
+            margin-left: 10px;
+            min-width: 40px;
+        }
+        .character-grid {
+            display: flex;
+            flex-direction: column;
+            margin: 20px 0;
+        }
+        .character-box {
+            border: 1px solid #eee;
+            padding: 10px;
+            text-align: center;
+            margin: 0 10px;
+            width: min(120px, 20vw);
+            flex-shrink: 0;
+        }
+        .character-target {
+            width: min(120px, 20vw);
+            height: min(120px, 20vw);
+            margin: 0 auto;
+        }
+        .controls {
+            text-align: center;
+            margin-top: 10px;
+        }
+        button {
+            padding: 5px 10px;
+            margin: 0 5px;
+        }
+        .top-controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .top-controls button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .top-controls button:hover {
+            background-color: #45a049;
+        }
+        .poem-section {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        .poem-text {
+            font-size: 18px;
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        .poem-author {
+            color: #666;
+            font-style: italic;
+        }
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .loading-text {
+            font-size: 20px;
+            color: #4CAF50;
+        }
+        .poem-line {
+            display: flex;
+            justify-content: flex-start;
+            margin: 20px 0;
+            padding-left: 50px;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+        }
+        .play-control {
+            margin: 0 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .play-control button {
+            padding: 5px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .play-control button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>汉字书写学习系统</h1>
+        <div id="loading" class="loading" style="display: none;">
+            <div class="loading-text">正在加载诗词...</div>
+        </div>
+        <div class="top-controls">
+            <button onclick="loadNewPoem()">加载随机古诗</button>
+            <button onclick="loadFromAPI()">在线获取古诗</button>
+            <button onclick="loadFromBackupAPI()">备用API获取</button>
+        </div>
+        <div class="animation-controls">
+            <div class="play-control">
+                <button id="playPauseBtn">暂停</button>
+                <button id="resetBtn">重新开始</button>
+            </div>
+            <div class="speed-control">
+                <label for="strokeSpeed">笔画速度:</label>
+                <input type="range" id="strokeSpeed" min="0.1" max="3" step="0.1" value="1">
+                <span class="speed-value" id="strokeSpeedValue">1.0x</span>
+            </div>
+            <div class="speed-control">
+                <label for="strokeDelay">笔画间隔:</label>
+                <input type="range" id="strokeDelay" min="0" max="1000" step="50" value="500">
+                <span class="speed-value" id="strokeDelayValue">500ms</span>
+            </div>
+        </div>
+        <div class="poem-section" id="poem-section" style="display: none;">
+            <div class="poem-text" id="poem-text"></div>
+            <div class="poem-author" id="poem-author"></div>
+        </div>
+        <div class="character-grid" id="grid"></div>
+    </div>
+
+    <script>
+        // 本地诗词数据库
+        const POEMS = [
+            {
+                content: "床前明月光，疑是地上霜。举头望明月，低头思故乡。",
+                origin: { author: "李白", title: "静夜思" }
+            },
+            {
+                content: "白日依山尽，黄河入海流。欲穷千里目，更上一层楼。",
+                origin: { author: "王之涣", title: "登鹳雀楼" }
+            },
+            {
+                content: "春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。",
+                origin: { author: "孟浩然", title: "春晓" }
+            },
+            {
+                content: "红豆生南国，春来发几枝。愿君多采撷，此物最相思。",
+                origin: { author: "王维", title: "相思" }
+            },
+            {
+                content: "君问归期未有期，巴山夜雨涨秋池。何当共剪西窗烛，却话巴山夜雨时。",
+                origin: { author: "李商隐", title: "夜雨寄北" }
+            }
+        ];
+
+        const writers = {};
+
+        // 动画控制变量
+        let strokeAnimationSpeed = 1;
+        let delayBetweenStrokes = 500;
+
+        // 播放控制变量
+        let isPlaying = true;
+        let currentLineIndex = 0;
+        let currentCharIndex = 0;
+        let currentAnimation = null;
+
+        // 播放控制按钮
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+
+        playPauseBtn.addEventListener('click', function() {
+            isPlaying = !isPlaying;
+            this.textContent = isPlaying ? '暂停' : '继续';
+            if (isPlaying && currentAnimation) {
+                continueAnimation();
+            }
+        });
+
+        resetBtn.addEventListener('click', async function() {
+            // 停止所有当前动画
+            Object.values(writers).forEach(writer => {
+                if (writer.animationPlaying) {
+                    writer.cancelAnimation();
+                }
+            });
+
+            currentLineIndex = 0;
+            currentCharIndex = 0;
+            isPlaying = true;
+            playPauseBtn.textContent = '暂停';
+            
+            // 重置所有汉字显示
+            Object.values(writers).forEach(writer => {
+                writer.hideCharacter();
+            });
+
+            // 重新开始播放
+            const lines = document.getElementById('poem-text').innerText
+                .split(/[，。？！；]/g)
+                .filter(line => line.trim());
+            
+            await animatePoem(lines);
+        });
+
+        async function continueAnimation() {
+            if (!isPlaying) return;
+            const poem = document.getElementById('poem-text').innerText;
+            const lines = poem.split(/[，。？！；]/g).filter(line => line.trim());
+            
+            // 从当前位置继续播放
+            for (let i = currentLineIndex; i < lines.length; i++) {
+                if (!isPlaying) return;
+                const chars = lines[i].trim().split('');
+                
+                // 如果是当前行，从当前字继续
+                let startIndex = i === currentLineIndex ? currentCharIndex : 0;
+                
+                for (let j = startIndex; j < chars.length; j++) {
+                    if (!isPlaying) return;
+                    currentCharIndex = j;
+                    const char = chars[j];
+                    
+                    if (/[\u4e00-\u9fa5]/.test(char) && writers[char]) {
+                        writers[char].setOptions({
+                            strokeAnimationSpeed: strokeAnimationSpeed,
+                            delayBetweenStrokes: delayBetweenStrokes
+                        });
+                        
+                        await new Promise(resolve => {
+                            currentAnimation = writers[char].animateCharacter({
+                                onComplete: resolve
+                            });
+                        });
+                    }
+                }
+                
+                currentLineIndex = i + 1;
+                currentCharIndex = 0;
+                
+                if (i < lines.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            }
+        }
+
+        // 监听速度控制
+        document.getElementById('strokeSpeed').addEventListener('input', function(e) {
+            strokeAnimationSpeed = parseFloat(e.target.value);
+            document.getElementById('strokeSpeedValue').textContent = strokeAnimationSpeed.toFixed(1) + 'x';
+            if (currentAnimation) {
+                currentAnimation.updateConfig({
+                    strokeAnimationSpeed: strokeAnimationSpeed
+                });
+            }
+        });
+
+        document.getElementById('strokeDelay').addEventListener('input', function(e) {
+            delayBetweenStrokes = parseInt(e.target.value);
+            document.getElementById('strokeDelayValue').textContent = delayBetweenStrokes + 'ms';
+            if (currentAnimation) {
+                currentAnimation.updateConfig({
+                    delayBetweenStrokes: delayBetweenStrokes
+                });
+            }
+        });
+
+        function createCharacterBox(char) {
+            const box = document.createElement('div');
+            box.className = 'character-box';
+            
+            const target = document.createElement('div');
+            target.className = 'character-target';
+            target.id = `target-${char}`;
+            
+            box.appendChild(target);
+            return box;
+        }
+
+        // 显示状态信息
+        function showStatus(message, isError = false) {
+            const status = document.getElementById('loading');
+            const loadingText = status.querySelector('.loading-text');
+            loadingText.textContent = message;
+            status.style.display = 'flex';
+            
+            if (!isError) {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 1000);
+            }
+        }
+
+        // 从今日诗词API获取
+        async function loadFromAPI() {
+            try {
+                showStatus('正在从今日诗词获取...');
+                
+                // 动态加载SDK
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://sdk.jinrishici.com/v2/browser/jinrishici.js';
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+
+                // 等待SDK初始化
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // 获取诗词
+                const result = await jinrishici.load();
+                await displayPoem(result.data);
+                showStatus('获取成功');
+            } catch (error) {
+                console.error('今日诗词API加载失败:', error);
+                showStatus('今日诗词API加载失败，尝试使用备用API', true);
+                await loadFromBackupAPI();
+            }
+        }
+
+        // 从备用API获取
+        async function loadFromBackupAPI() {
+            try {
+                showStatus('正在从备用API获取...');
+                const response = await fetch('https://v1.jinrishici.com/all.json');
+                const data = await response.json();
+                const poem = {
+                    content: data.content,
+                    origin: {
+                        author: data.author,
+                        title: data.origin
+                    }
+                };
+                await displayPoem(poem);
+                showStatus('获取成功');
+            } catch (error) {
+                console.error('备用API加载失败:', error);
+                showStatus('在线API均失败，使用本地诗词', true);
+                await loadNewPoem();
+            }
+        }
+
+        // 显示诗词和汉字
+        async function displayPoem(poem) {
+            try {
+                document.getElementById('poem-text').innerText = poem.content;
+                document.getElementById('poem-author').innerText = `${poem.origin.author} - ${poem.origin.title}`;
+                document.getElementById('poem-section').style.display = 'block';
+                
+                const grid = document.getElementById('grid');
+                grid.innerHTML = '';
+                Object.keys(writers).forEach(key => delete writers[key]);
+                
+                const lines = poem.content.split(/[，。？！；]/g).filter(line => line.trim());
+                
+                // 创建所有汉字实例但不显示
+                lines.forEach(line => {
+                    const lineDiv = document.createElement('div');
+                    lineDiv.className = 'poem-line';
+                    grid.appendChild(lineDiv);
+                    
+                    const chars = line.trim().split('');
+                    chars.forEach(char => {
+                        if (/[\u4e00-\u9fa5]/.test(char)) {
+                            const box = createCharacterBox(char);
+                            lineDiv.appendChild(box);
+                            
+                            writers[char] = HanziWriter.create(`target-${char}`, char, {
+                                width: Math.min(120, window.innerWidth * 0.2),
+                                height: Math.min(120, window.innerWidth * 0.2),
+                                padding: 5,
+                                showOutline: true,
+                                showCharacter: false,
+                                strokeAnimationSpeed: parseFloat(strokeAnimationSpeed),
+                                delayBetweenStrokes: parseInt(delayBetweenStrokes)
+                            });
+                            writers[char].hideCharacter();
+                        }
+                    });
+                });
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await animatePoem(lines);
+            } catch (error) {
+                throw new Error('显示诗词失败: ' + error.message);
+            }
+        }
+
+        // 新增动画控制函数
+        async function animatePoem(lines) {
+            // 先重置所有汉字状态
+            Object.values(writers).forEach(writer => {
+                if (writer.animationPlaying) {
+                    writer.cancelAnimation();
+                }
+                writer.hideCharacter();
+            });
+
+            for (let i = 0; i < lines.length; i++) {
+                if (!isPlaying) return;
+                currentLineIndex = i;
+                const chars = lines[i].trim().split('');
+                
+                for (let j = 0; j < chars.length; j++) {
+                    if (!isPlaying) return;
+                    currentCharIndex = j;
+                    const char = chars[j];
+                    
+                    if (/[\u4e00-\u9fa5]/.test(char) && writers[char]) {
+                        const currentSpeed = parseFloat(document.getElementById('strokeSpeed').value);
+                        const currentDelay = parseInt(document.getElementById('strokeDelay').value);
+                        
+                        // 确保其他字都是隐藏的
+                        Object.entries(writers).forEach(([key, writer]) => {
+                            if (key !== char) {
+                                writer.hideCharacter();
+                            }
+                        });
+                        
+                        await new Promise(resolve => {
+                            currentAnimation = writers[char].animateCharacter({
+                                strokeAnimationSpeed: currentSpeed,
+                                delayBetweenStrokes: currentDelay,
+                                onComplete: resolve
+                            });
+                        });
+                    }
+                }
+                
+                if (i < lines.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            }
+
+            // 动画完成后的状态更新
+            currentLineIndex = lines.length;
+            currentCharIndex = 0;
+            isPlaying = true;
+            playPauseBtn.textContent = '暂停';
+        }
+
+        // 修改原有的 loadNewPoem 函数
+        async function loadNewPoem() {
+            try {
+                showStatus('正在加载本地诗词...');
+                const poem = POEMS[Math.floor(Math.random() * POEMS.length)];
+                await displayPoem(poem);
+                showStatus('加载成功');
+            } catch (error) {
+                console.error('加载古诗失败:', error);
+                showStatus('加载失败，请刷新页面重试', true);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadNewPoem);
+
+        window.addEventListener('resize', () => {
+            Object.keys(writers).forEach(char => {
+                const width = Math.min(120, window.innerWidth * 0.2);
+                const height = Math.min(120, window.innerWidth * 0.2);
+                
+                const target = document.getElementById(`target-${char}`);
+                if (target) {
+                    writers[char].destroy();
+                    writers[char] = HanziWriter.create(`target-${char}`, char, {
+                        width: width,
+                        height: height,
+                        padding: 5,
+                        showOutline: true,
+                        showCharacter: false,
+                        strokeAnimationSpeed: parseFloat(strokeAnimationSpeed),
+                        delayBetweenStrokes: parseInt(delayBetweenStrokes)
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

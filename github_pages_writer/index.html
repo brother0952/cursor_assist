@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>汉字书写演示</title>
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.7/dist/hanzi-writer.min.js"></script>
+    <style>
+        #character-target-div {
+            width: 200px;
+            height: 200px;
+            border: 1px solid #ddd;
+            margin: 20px auto;
+        }
+        .controls {
+            text-align: center;
+            margin: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div id="character-target-div"></div>
+    <div class="controls">
+        <button onclick="writer.animateCharacter()">显示动画</button>
+        <button onclick="writer.quiz()">开始练习</button>
+    </div>
+
+    <script>
+        var writer = HanziWriter.create('character-target-div', '你', {
+            width: 200,
+            height: 200,
+            padding: 5,
+            showOutline: true,
+            strokeAnimationSpeed: 1,
+            delayBetweenStrokes: 500
+        });
+    </script>
+</body>
+</html> 
