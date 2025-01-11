@@ -2,39 +2,39 @@
 chcp 65001 >nul
 setlocal EnableDelayedExpansion
 
-:: 设置 FFmpeg 路径
+:: Set FFmpeg path
 set "FFMPEG=F:\ziliao\ffmpeg\ffmpeg-20181208-6b1c4ce-win32-shared\ffmpeg-20181208-6b1c4ce-win32-shared\bin\ffmpeg.exe"
 
-:: 设置输入和输出文件夹
+:: Set input and output folders
 set "input_dir=input"
 set "output_dir=output"
 
-:: 创建输出目录
+:: Create output directory
 if not exist "%output_dir%" mkdir "%output_dir%"
 
-:: 设置FPS控制选项（默认关闭）
+:: Set FPS control option (default: off)
 set "control_fps=0"
 
 :fps_menu
 cls
-echo FPS控制设置
+echo FPS Control Settings
 echo =====================================
-echo 当前状态: !control_fps!
-echo [0] 关闭 - 保持原始FPS
-echo [1] 开启 - 60FPS自动降至30FPS
+echo Current Status: !control_fps!
+echo [0] Off - Keep Original FPS
+echo [1] On - Auto reduce 60FPS to 30FPS
 echo.
-set /p fps_choice="请选择FPS控制模式 (0/1): "
+set /p fps_choice="Select FPS control mode (0/1): "
 
 if "!fps_choice!"=="0" (
     set "control_fps=0"
 ) else if "!fps_choice!"=="1" (
     set "control_fps=1"
 ) else (
-    echo 无效选择，使用默认值（关闭）
+    echo Invalid choice, using default (Off)
     set "control_fps=0"
 )
 
-:: 检查是否支持NVIDIA编码
+:: Check NVIDIA encoder support
 set "has_nvidia=0"
 "%FFMPEG%" -hide_banner -encoders > encoders.txt
 findstr /C:"h264_nvenc" encoders.txt > nul
@@ -43,35 +43,35 @@ if !errorlevel! equ 0 (
 )
 del encoders.txt
 
-:: 设置默认CPU配置
+:: Set default CPU profiles count
 set "profile_count=5"
 
-:: 设置CPU配置
-set "p1_name=超高画质"
+:: Set CPU profiles
+set "p1_name=Ultra High Quality"
 set "p1_quality=18"
 set "p1_preset=veryslow"
 set "p1_suffix=_uhq"
 set "p1_encoder=libx264"
 
-set "p2_name=高画质"
+set "p2_name=High Quality"
 set "p2_quality=23"
 set "p2_preset=slow"
 set "p2_suffix=_hq"
 set "p2_encoder=libx264"
 
-set "p3_name=中等画质"
+set "p3_name=Medium Quality"
 set "p3_quality=28"
 set "p3_preset=medium"
 set "p3_suffix=_mq"
 set "p3_encoder=libx264"
 
-set "p4_name=低画质高压缩"
+set "p4_name=Low Quality High Compression"
 set "p4_quality=33"
 set "p4_preset=veryfast"
 set "p4_suffix=_lq"
 set "p4_encoder=libx264"
 
-set "p5_name=极限压缩"
+set "p5_name=Maximum Compression"
 set "p5_quality=40"
 set "p5_preset=ultrafast"
 set "p5_suffix=_min"
@@ -80,44 +80,44 @@ set "p5_encoder=libx264"
 if "!has_nvidia!"=="1" (
     set "profile_count=7"
     
-    REM 设置GPU配置
-    set "p1_name=超高画质(GPU)"
+    REM Set GPU profiles
+    set "p1_name=Ultra High Quality (GPU)"
     set "p1_quality=18"
     set "p1_preset=medium"
     set "p1_suffix=_uhq_gpu"
     set "p1_encoder=h264_nvenc"
     
-    set "p2_name=高画质(GPU)"
+    set "p2_name=High Quality (GPU)"
     set "p2_quality=23"
     set "p2_preset=medium"
     set "p2_suffix=_hq_gpu"
     set "p2_encoder=h264_nvenc"
     
-    set "p3_name=中等画质(GPU)"
+    set "p3_name=Medium Quality (GPU)"
     set "p3_quality=28"
     set "p3_preset=medium"
     set "p3_suffix=_mq_gpu"
     set "p3_encoder=h264_nvenc"
     
-    set "p4_name=低画质高压缩(GPU)"
+    set "p4_name=Low Quality High Compression (GPU)"
     set "p4_quality=33"
     set "p4_preset=fast"
     set "p4_suffix=_lq_gpu"
     set "p4_encoder=h264_nvenc"
     
-    set "p5_name=极限压缩(GPU)"
+    set "p5_name=Maximum Compression (GPU)"
     set "p5_quality=40"
     set "p5_preset=fast"
     set "p5_suffix=_min_gpu"
     set "p5_encoder=h264_nvenc"
     
-    set "p6_name=超高画质(CPU)"
+    set "p6_name=Ultra High Quality (CPU)"
     set "p6_quality=18"
     set "p6_preset=veryslow"
     set "p6_suffix=_uhq_cpu"
     set "p6_encoder=libx264"
     
-    set "p7_name=高画质(CPU)"
+    set "p7_name=High Quality (CPU)"
     set "p7_quality=23"
     set "p7_preset=slow"
     set "p7_suffix=_hq_cpu"
@@ -126,83 +126,87 @@ if "!has_nvidia!"=="1" (
 
 :menu
 echo.
-echo 视频压缩工具
+echo Video Compression Tool
 echo =====================================
-echo 请选择压缩配置:
+echo Select compression profile:
 echo.
 
-if "!has_nvidia!"=="1" (
-    echo --- GPU加速模式 (NVIDIA) ---
-    echo 1. 超高画质 (GPU加速)
-    echo    - 质量: 最佳
-    echo    - 预设: medium
-    echo    - 压缩率: 60-70%%
-    echo.
-    echo 2. 高画质 (GPU加速, 推荐)
-    echo    - 质量: 很好
-    echo    - 预设: medium
-    echo    - 压缩率: 40-50%%
-    echo.
-    echo 3. 中等画质 (GPU加速)
-    echo    - 质量: 良好
-    echo    - 预设: medium
-    echo    - 压缩率: 30-40%%
-    echo.
-    echo 4. 低画质高压缩 (GPU加速)
-    echo    - 质量: 一般
-    echo    - 预设: fast
-    echo    - 压缩率: 20-30%%
-    echo.
-    echo 5. 极限压缩 (GPU加速)
-    echo    - 质量: 较差
-    echo    - 预设: fast
-    echo    - 压缩率: 10-20%%
-    echo.
-    echo --- CPU模式 ---
-    echo 6. 超高画质 (CPU)
-    echo 7. 高画质 (CPU)
-) else (
-    echo --- CPU模式 ---
-    echo 1. 超高画质
-    echo    - CRF: 18
-    echo    - 预设: veryslow
-    echo    - 压缩率: 60-70%%
-    echo.
-    echo 2. 高画质 (推荐)
-    echo    - CRF: 23
-    echo    - 预设: slow
-    echo    - 压缩率: 40-50%%
-    echo.
-    echo 3. 中等画质
-    echo    - CRF: 28
-    echo    - 预设: medium
-    echo    - 压缩率: 30-40%%
-    echo.
-    echo 4. 低画质高压缩
-    echo    - CRF: 33
-    echo    - 预设: veryfast
-    echo    - 压缩率: 20-30%%
-    echo.
-    echo 5. 极限压缩
-    echo    - CRF: 40
-    echo    - 预设: ultrafast
-    echo    - 压缩率: 10-20%%
-)
+if not "!has_nvidia!"=="1" goto cpu_menu
 
+:gpu_menu
+echo === GPU Acceleration Mode (NVIDIA) ===
+echo 1. Ultra High Quality (GPU)
+echo    - Quality: Best
+echo    - Preset: medium
+echo    - Compression ratio: 0.6-0.7x
 echo.
-echo 0. 退出
+echo 2. High Quality (GPU, Recommended)
+echo    - Quality: Very Good
+echo    - Preset: medium
+echo    - Compression ratio: 0.4-0.5x
+echo.
+echo 3. Medium Quality (GPU)
+echo    - Quality: Good
+echo    - Preset: medium
+echo    - Compression ratio: 0.3-0.4x
+echo.
+echo 4. Low Quality High Compression (GPU)
+echo    - Quality: Fair
+echo    - Preset: fast
+echo    - Compression ratio: 0.2-0.3x
+echo.
+echo 5. Maximum Compression (GPU)
+echo    - Quality: Poor
+echo    - Preset: fast
+echo    - Compression ratio: 0.1-0.2x
+echo.
+echo === CPU Mode ===
+echo 6. Ultra High Quality (CPU)
+echo 7. High Quality (CPU)
+goto menu_end
+
+:cpu_menu
+echo === CPU Mode ===
+echo 1. Ultra High Quality
+echo    - CRF: 18
+echo    - Preset: veryslow
+echo    - Compression ratio: 0.6-0.7x
+echo.
+echo 2. High Quality (Recommended)
+echo    - CRF: 23
+echo    - Preset: slow
+echo    - Compression ratio: 0.4-0.5x
+echo.
+echo 3. Medium Quality
+echo    - CRF: 28
+echo    - Preset: medium
+echo    - Compression ratio: 0.3-0.4x
+echo.
+echo 4. Low Quality High Compression
+echo    - CRF: 33
+echo    - Preset: veryfast
+echo    - Compression ratio: 0.2-0.3x
+echo.
+echo 5. Maximum Compression
+echo    - CRF: 40
+echo    - Preset: ultrafast
+echo    - Compression ratio: 0.1-0.2x
+
+:menu_end
+echo.
+echo 0. Exit
 echo =====================================
 
-set /p "choice=请输入选择 (0-!profile_count!): "
+set /p "choice=Enter your choice (0-!profile_count!): "
 
 if "!choice!"=="0" goto :eof
 if !choice! gtr !profile_count! (
-    echo 无效选择，请重试
+    echo Invalid choice, please try again
     pause
     goto menu
 )
 
-:: 获取选择的配置
+:: Get selected profile
 set "name=!p%choice%_name!"
 set "quality=!p%choice%_quality!"
 set "preset=!p%choice%_preset!"
@@ -210,65 +214,96 @@ set "suffix=!p%choice%_suffix!"
 set "encoder=!p%choice%_encoder!"
 
 echo.
-echo 已选择: !name!
-echo 开始处理视频...
+echo Selected: !name!
+echo Starting video processing...
 echo.
 
-:: 处理所有视频文件
+:: Check if input directory exists
+if not exist "%input_dir%" (
+    echo Error: Input directory "%input_dir%" does not exist.
+    echo Please create the input directory and place your videos inside.
+    echo.
+    pause
+    goto menu
+)
+
+:: Check if input directory has video files
+set "has_videos=0"
+for %%i in ("%input_dir%\*.mp4" "%input_dir%\*.avi" "%input_dir%\*.mov") do (
+    if exist "%%i" set "has_videos=1"
+)
+
+if "!has_videos!"=="0" (
+    echo Error: No video files found in input directory.
+    echo Please place your videos in the "%input_dir%" directory.
+    echo Supported formats: .mp4, .avi, .mov
+    echo.
+    pause
+    goto menu
+)
+
+:: Create output directory if it doesn't exist
+if not exist "%output_dir%" (
+    mkdir "%output_dir%"
+    echo Created output directory: %output_dir%
+    echo.
+)
+
+:: Process all video files
 for %%i in ("%input_dir%\*.mp4" "%input_dir%\*.avi" "%input_dir%\*.mov") do (
     if exist "%%i" (
-        echo 正在处理: %%~nxi
+        echo Processing: %%~nxi
         
-        :: 获取视频FPS
+        :: Get video FPS
         for /f "tokens=*" %%f in ('"%FFMPEG%" -i "%%i" 2^>^&1 ^| findstr "fps"') do (
             set "fps_info=%%f"
         )
-        :: 提取FPS值
+        :: Extract FPS value
         for /f "tokens=2 delims=," %%f in ("!fps_info!") do (
             set "fps_value=%%f"
         )
         set "fps_value=!fps_value: fps=!"
         set /a "fps_num=!fps_value!"
         
-        echo 原始FPS: !fps_num!
+        echo Original FPS: !fps_num!
         
-        :: 获取原始视频的码率（以kbps为单位）
+        :: Get original video bitrate (in kbps)
         for /f "tokens=*" %%b in ('"%FFMPEG%" -i "%%i" 2^>^&1 ^| findstr "bitrate"') do (
             set "bitrate_info=%%b"
         )
         
-        :: 提取码率数值（kbps）
+        :: Extract bitrate value (kbps)
         for /f "tokens=6 delims=:, " %%b in ("!bitrate_info!") do (
             set /a "orig_bitrate=%%b"
         )
         
-        :: 获取文件大小（以字节为单位）
+        :: Get file size (in bytes)
         for %%s in ("%%i") do set "orig_size=%%~zs"
         
-        :: 将码率从kbps转换为Mbps
+        :: Convert bitrate from kbps to Mbps
         set /a "orig_bitrate_m=orig_bitrate/1000"
-        echo 原始码率: !orig_bitrate_m! Mbps
-        echo 原始大小: !orig_size! 字节
+        echo Original bitrate: !orig_bitrate_m! Mbps
+        echo Original size: !orig_size! bytes
         
-        :: 构建输出文件名
+        :: Build output filename
         set "output_file=%output_dir%\%%~ni!suffix!%%~xi"
         
-        :: 根据编码器和原始码率选择压缩策略
+        :: Choose compression strategy based on encoder and original bitrate
         if "!encoder!"=="h264_nvenc" (
-            :: GPU编码
+            :: GPU encoding
             if !orig_bitrate_m! leq 2 (
-                echo 原始码率已经很低，跳过压缩
+                echo Original bitrate too low, skipping compression
                 echo.
                 continue
             ) else (
-                :: 设置目标码率为原始码率的一半，但不超过15Mbps
+                :: Set target bitrate to half of original, but not exceeding 15Mbps
                 set /a "target_bitrate=orig_bitrate_m/2"
                 if !target_bitrate! gtr 15 set "target_bitrate=15"
-                echo 目标码率: !target_bitrate! Mbps
+                echo Target bitrate: !target_bitrate! Mbps
                 
-                :: 根据FPS控制选项和当前FPS决定是否需要降帧
+                :: Check if FPS reduction is needed based on control option and current FPS
                 if "!control_fps!"=="1" if !fps_num! geq 50 (
-                    echo 检测到高帧率，降至30FPS
+                    echo High FPS detected, reducing to 30FPS
                     "%FFMPEG%" -hwaccel cuda -i "%%i" -c:v h264_nvenc ^
                         -preset !preset! ^
                         -rc:v vbr_hq ^
@@ -298,20 +333,20 @@ for %%i in ("%input_dir%\*.mp4" "%input_dir%\*.avi" "%input_dir%\*.mov") do (
                 )
             )
         ) else (
-            :: CPU编码
+            :: CPU encoding
             if !orig_bitrate_m! leq 2 (
-                echo 原始码率已经很低，跳过压缩
+                echo Original bitrate too low, skipping compression
                 echo.
                 continue
             ) else (
-                :: 使用CRF模式，但设置最大码率
+                :: Use CRF mode with maxrate
                 set /a "target_bitrate=orig_bitrate_m/2"
                 if !target_bitrate! gtr 15 set "target_bitrate=15"
-                echo 目标码率: !target_bitrate! Mbps
+                echo Target bitrate: !target_bitrate! Mbps
                 
-                :: 根据FPS控制选项和当前FPS决定是否需要降帧
+                :: Check if FPS reduction is needed based on control option and current FPS
                 if "!control_fps!"=="1" if !fps_num! geq 50 (
-                    echo 检测到高帧率，降至30FPS
+                    echo High FPS detected, reducing to 30FPS
                     "%FFMPEG%" -i "%%i" -c:v libx264 ^
                         -crf !quality! ^
                         -maxrate:v !target_bitrate!M ^
@@ -334,28 +369,28 @@ for %%i in ("%input_dir%\*.mp4" "%input_dir%\*.avi" "%input_dir%\*.mov") do (
             )
         )
         
-        :: 检查压缩结果
+        :: Check compression results
         if exist "!output_file!" (
             for %%s in ("!output_file!") do set "new_size=%%~zs"
-            echo 新文件大小: !new_size! 字节
+            echo New file size: !new_size! bytes
             
-            :: 如果新文件更大，则删除它并保留原始文件
+            :: If new file is larger, delete it and keep original
             if !new_size! gtr !orig_size! (
-                echo 警告：压缩后文件更大，保留原始文件
+                echo Warning: Compressed file is larger, keeping original
                 del "!output_file!"
             ) else (
                 set /a "saved_space=orig_size-new_size"
-                set /a "saved_percent=saved_space*100/orig_size"
-                echo 节省空间: !saved_percent!%%
+                set /a "saved_ratio=(saved_space*100)/orig_size"
+                echo Space saved ratio: 0.!saved_ratio!x
             )
         )
             
-        echo 完成: %%~nxi
+        echo Completed: %%~nxi
         echo.
     )
 )
 
-echo 所有视频处理完成！
+echo All videos processed!
 echo.
 pause
 goto menu 
