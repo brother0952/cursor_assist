@@ -6,6 +6,9 @@ import configparser
 import sys
 import glob
 
+
+# TODO 中文路径不行
+
 class VideoCompressor:
     def __init__(self):
         self.config = self._load_config()
@@ -346,7 +349,7 @@ class VideoCompressor:
             if not video_info:
                 continue
 
-            if video_info['bitrate'] <= 2000:  # 2 Mbps
+            if video_info['bitrate'] <= 1000:  # 2 Mbps
                 print("Original bitrate too low, skipping compression")
                 continue
 
