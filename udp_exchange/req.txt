@@ -1,0 +1,6 @@
+我需要创建3个py程序，它们之间通过udp或者tcp通信，可配置。
+client.py 负责收发数据，发数据给relay.py 
+relay.py 是中间人角色。负责接收client.py的数据，然后转发给server.py。同时接收server.py的数据，并转发给client.py。
+server.py 负责接收 relay.py 的数据，自己处理完成后，回复 relay.py 
+
+relay.py 必须是高性能，非阻塞。relay.py 可以做一些数据记录的工作。
