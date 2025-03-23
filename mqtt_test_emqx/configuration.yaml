@@ -1,0 +1,21 @@
+# 基础配置
+default_config:
+
+# MQTT 集成配置
+mqtt:
+  broker: broker.emqx.io
+  port: 1883
+  # 不需要用户名和密码
+  discovery: true
+  discovery_prefix: homeassistant
+
+# 手动配置传感器（如果自动发现不工作）
+sensor:
+  - platform: mqtt
+    name: "Test Sensor"
+    state_topic: "test/state"
+
+logger:
+  default: info
+  logs:
+    homeassistant.components.mqtt: debug 

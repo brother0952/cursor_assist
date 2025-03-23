@@ -1,3 +1,5 @@
+# -*-coding:utf-8 -*-
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -6,11 +8,41 @@ from torchvision import datasets, transforms
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
+
+
+# info , curosr 生成的demo 。和b站唐老师视频对比
+
+# TODO 统计训练时间
+# start_time = time.time()
+
+# 设置中文字体
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 黑体
+plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+
+
+'''
+输入图像是 28*28 的灰度图，所以输入通道是1，输出通道是32，卷积核是3*3
+经过第一个卷积层后，输出变为 28*28*32 ， 32 是输出通道数，表示学习了32种不同的特征. 28*28 是输出图像的尺寸，表示特征图的尺寸。 
+28 的计算方法：(28 - 3+2*1)/1 + 1 = 28 . 计算公式：(输入尺寸 - 卷积核尺寸 + 2*padding)/步长 + 1 = 输出尺寸
+
+再进入第一个池化层，池化层的作用是降低特征图的尺寸，同时保留重要的特征。池化层通常使用最大池化，即取特征图中的最大值。
+特征图尺寸变为 14*14*32 ， 14 的计算方法：(28 - 2)/2 + 1 = 14 . 计算公式：(输入尺寸 - 池化核尺寸)/步长 + 1 = 输出尺寸
+
+再进入第二个卷积层，输入通道变为32，输出通道变为64，卷积核仍然是3*3。
+经过第二个卷积层后，输出变为 14*14*64 ， 64 是输出通道数，表示学习了64种不同的特征。14*14 是输出图像的尺寸，表示特征图的尺寸。
+14 的计算方法：(14 - 3+2*1)/1 + 1 = 14 . 计算公式：(输入尺寸 - 卷积核尺寸 + 2*padding)/步长 + 1 = 输出尺寸
+
+再进入第二个池化层，池化层的作用是进一步降低特征图的尺寸，同时保留重要的特征。池化层通常使用最大池化，即取特征图中的最大值。
+特征图尺寸变为 7*7*64 ， 7 的计算方法：(14 - 2)/2 + 1 = 7 . 计算公式：(输入尺寸 - 池化核尺寸)/步长 + 1 = 输出尺寸
+
+最后，将特征图展平为一维向量，输入到全连接层中。全连接层的作用是将特征向量映射到输出类别上。
+'''
+
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
         # 第一个卷积层，1个输入通道，32个输出通道，3x3卷积核
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1) # 输出32个通道，是经验值，学习32种不同的特征
         # 第二个卷积层，32个输入通道，64个输出通道，3x3卷积核
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
         # 全连接层
@@ -126,7 +158,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     
     # 训练模型
-    num_epochs = 10
+    num_epochs = 1 # 原来是10
     best_accuracy = 0
     
     print("开始训练...")
