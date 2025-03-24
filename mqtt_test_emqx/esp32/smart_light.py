@@ -5,9 +5,12 @@ from umqtt.simple import MQTTClient
 import json
 import random
 
+import neopixel
+
+
 # WiFi配置
-WIFI_SSID = "你的WiFi名称"
-WIFI_PASSWORD = "你的WiFi密码"
+WIFI_SSID = "HUAWEI-P107NL"
+WIFI_PASSWORD = "12871034"
 
 # MQTT配置
 BROKER = "broker.emqx.io"
@@ -22,8 +25,27 @@ TOPIC_AVAILABILITY = f"home/lights/{DEVICE_ID}/availability"
 TOPIC_DISCOVERY = f"{DISCOVERY_PREFIX}/light/{DEVICE_ID}/config"
 
 # LED配置（使用PWM模拟调光）
-led_pin = PWM(Pin(2))  # 根据实际连接调整
-led_pin.freq(1000)
+# led_pin = PWM(Pin(2))  # 根据实际连接调整
+# led_pin.freq(1000)
+
+# WS2812 LED配置
+LED_PIN = 38  # WS2812数据引脚
+LED_COUNT = 1  # LED数量
+np = neopixel.NeoPixel(Pin(LED_PIN), LED_COUNT)
+
+def set_led_color(temp):
+    """根据温度设置LED颜色
+    温度 < 25: 蓝色
+    25 <= 温度 <= 30: 绿色
+    温度 > 30: 红色
+    """
+    if temp > 30:
+        np[0] = (temp, 0, 0)  # 红色 (R,G,B)
+    elif temp >= 25:
+        np[0] = (0, temp, 0)  # 绿色
+    else:
+        np[0] = (0, 0, temp)  # 蓝色
+    np.write()  # 更新LED显示
 
 def connect_wifi():
     """连接WiFi"""
@@ -39,8 +61,9 @@ def connect_wifi():
 
 def set_brightness(brightness):
     """设置LED亮度 (0-100)"""
-    duty = int(brightness * 1023 / 100)
-    led_pin.duty(duty)
+    # duty = int(brightness * 1023 / 100)
+    # led_pin.duty(duty)
+    set_led_color(brightness)
 
 def on_message(topic, msg):
     """处理接收到的消息"""
