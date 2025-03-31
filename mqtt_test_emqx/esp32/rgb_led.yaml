@@ -1,0 +1,28 @@
+esphome:
+  name: esp32_rgb
+  platform: ESP32
+  board: esp32dev
+
+# WiFi配置
+wifi:
+  ssid: "HUAWEI-P107NL"
+  password: "12871034"
+
+# API配置，用于Home Assistant连接
+api:
+
+# 启用OTA更新
+ota:
+
+# LED配置
+light:
+  - platform: neopixelbus
+    type: GRB
+    pin: GPIO38
+    num_leds: 1
+    name: "ESP32 RGB LED"
+    effects:
+      - random:
+      - strobe:
+      - flicker:
+      - rainbow:

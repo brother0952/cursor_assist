@@ -2,11 +2,13 @@ import paho.mqtt.client as mqtt
 import time
 import json
 
+from device_config import *
+
 # MQTT设置
-MQTT_BROKER = "localhost"  # 确保这是正确的broker地址
+# MQTT_BROKER = "192.168.3.129"  # 确保这是正确的broker地址
 MQTT_PORT = 1883
-MQTT_USERNAME = "hass"  # Add your EMQX username here
-MQTT_PASSWORD = "hass"  # Add your EMQX password here
+# MQTT_USERNAME = "wei"  # Add your EMQX username here
+# MQTT_PASSWORD = "111"  # Add your EMQX password here
 
 # 设备信息
 DEVICE_ID = "virtual_device1"
@@ -24,6 +26,9 @@ DISCOVERY_TOPIC = f"{DISCOVERY_PREFIX}/{COMPONENT}/{DEVICE_ID}/{ENTITY_ID}/confi
 STATE_TOPIC = f"{DISCOVERY_PREFIX}/{COMPONENT}/{DEVICE_ID}/state"
 print(f"Discovery topic: {DISCOVERY_TOPIC}")
 print(f"State topic: {STATE_TOPIC}")
+
+
+STATE_TOPIC2 = "/test/a"
 
 # 设备发现配置
 discovery_message = {
@@ -82,9 +87,13 @@ try:
     client.connect(MQTT_BROKER, MQTT_PORT, 60)
     client.loop_start()
 
+    # x=0
     # 定期发送状态信息
     while True:
         try:
+            # x+=1
+            # client.publish(STATE_TOPIC2,f"hi:{x}", retain=True, qos=0) # my add
+            
             state = {
                 "status": "online",
                 "timestamp": time.time()

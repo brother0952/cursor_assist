@@ -3,8 +3,10 @@ import time
 import json
 import random
 
+from device_config import *
+
 # MQTT配置
-BROKER = "broker.emqx.io"
+# BROKER = "broker.emqx.io"
 PORT = 1883
 DEVICE_ID = "temp_sensor_01"
 TOPIC_STATE = f"home/sensors/{DEVICE_ID}/state"
@@ -43,8 +45,8 @@ def main():
     client.on_connect = on_connect
     client.on_message = on_message
 
-    print(f"正在连接到 {BROKER}...")
-    client.connect(BROKER, PORT, 60)
+    print(f"正在连接到 {MQTT_BROKER}...")
+    client.connect(MQTT_BROKER, PORT, 60)
     client.loop_start()
 
     try:

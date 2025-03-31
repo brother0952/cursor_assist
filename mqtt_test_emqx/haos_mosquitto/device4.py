@@ -2,11 +2,14 @@ import paho.mqtt.client as mqtt
 import time
 import json
 
+
+from device_config import *
+
 # MQTT设置
-MQTT_BROKER = "localhost"
+# MQTT_BROKER = "192.168.3.129"
 MQTT_PORT = 1883
-MQTT_USERNAME = "hass"
-MQTT_PASSWORD = "hass"
+# MQTT_USERNAME = "wei"
+# MQTT_PASSWORD = "111"
 
 # 设备信息
 DEVICE_ID = "virtual_device3"
@@ -16,7 +19,7 @@ DEVICE_NAME = "Virtual LED Switch"
 
 # MQTT主题
 DISCOVERY_PREFIX = "homeassistant"
-COMPONENT = "switch"
+COMPONENT = "button"
 ENTITY_ID = "led"
 
 # 构建主题
