@@ -25,14 +25,14 @@ SENSORS = {
         "device_class": "temperature",
         "state_class": "measurement",
         "unit_of_measurement": "°C",
-        "value_template": "{{ value_json.temperature }}"
+        "value_template": "{{ value_json.temperature1 }}"
     },
     "temperature2": {
         "name": "Temperature",
         "device_class": "temperature",
         "state_class": "measurement",
         "unit_of_measurement": "°C",
-        "value_template": "{{ value_json.temperature }}"
+        "value_template": "{{ value_json.temperature2 }}"
     },
     "humidity": {
         "name": "Humidity",
