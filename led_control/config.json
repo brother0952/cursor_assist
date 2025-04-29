@@ -1,0 +1,47 @@
+{
+    "buttons": {
+        "count": 7,
+        "names": ["Button 1", "Button 2", "Button 3", "Button 4", "Button 5", "Button 6", "Button 7"]
+    },
+    "leds": {
+        "count": 4,
+        "names": ["LED 1", "LED 2", "LED 3", "LED 4"]
+    },
+    "rules": [
+        {
+            "buttons": [0],
+            "action": {
+                "led": 0,
+                "brightness": 50
+            }
+        },
+        {
+            "buttons": [0, 1],
+            "action": {
+                "led": 1,
+                "brightness": 100
+            }
+        },
+        {
+            "buttons": [4],
+            "action": {
+                "led": 1,
+                "brightness": 100
+            }
+        },
+        {
+            "buttons": [1],
+            "action": {
+                "led": 0,
+                "brightness": 0
+            }
+        },
+        {
+            "buttons": [2, 3],
+            "action": {
+                "led": 2,
+                "brightness": 75
+            }
+        }
+    ]
+}
