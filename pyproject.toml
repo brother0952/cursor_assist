@@ -1,0 +1,10 @@
+[project]
+name = "py-process"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pycryptodome>=3.23.0",
+    "pyserial>=3.5",
+]
