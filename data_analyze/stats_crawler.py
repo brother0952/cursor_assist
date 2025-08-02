@@ -133,6 +133,49 @@ class StatsCrawler:
             logger.error(f"获取文章链接失败: {e}")
             return []
     
+    def extract_main_content(self, html, url, title):
+        """提取正文和标题，移除无关内容，返回简化后的HTML字符串"""
+        soup = BeautifulSoup(html, 'html.parser')
+        # 先移除常见无用区块
+        useless_selectors = [
+            {'name': 'div', 'class_': 'footer'},
+            {'name': 'div', 'class_': 'header'},
+            {'name': 'div', 'class_': 'nav'},
+            {'name': 'div', 'class_': 'sidebar'},
+            {'name': 'div', 'class_': 'listbox', 'id': 'newgwybmbox'},
+            {'name': 'div', 'id': 'newgwybmbox'},
+        ]
+        for sel in useless_selectors:
+            found = soup.find_all(sel.get('name'), class_=sel.get('class_'), id=sel.get('id'))
+            for tag in found:
+                tag.decompose()
+        # 常见正文容器
+        main_selectors = [
+            {'name': 'div', 'class_': 'TRS_Editor'},
+            {'name': 'div', 'class_': 'article'},
+            {'name': 'div', 'id': 'content'},
+            {'name': 'div', 'id': 'zoom'},
+        ]
+        main_content = None
+        for sel in main_selectors:
+            main_content = soup.find(sel.get('name'), class_=sel.get('class_'), id=sel.get('id'))
+            if main_content:
+                break
+        if not main_content:
+            # 兜底：取最大段落数的div
+            divs = soup.find_all('div')
+            if divs:
+                main_content = max(divs, key=lambda d: len(d.find_all('p')))
+            else:
+                main_content = soup.body or soup
+        # 提取附件链接（保留原有的附件下载链接）
+        # 这里不做特殊处理，正文里本就包含了
+        # 构造简化HTML
+        head = f'<meta charset="utf-8"><title>{title}</title>'
+        body = f'<h1>{title}</h1>\n' + str(main_content)
+        simple_html = f'<html><head>{head}</head><body>{body}</body></html>'
+        return simple_html
+    
     def download_article(self, article_info):
         """下载单篇文章及其附件"""
         url = article_info['url']
@@ -155,10 +198,11 @@ class StatsCrawler:
             response.raise_for_status()
             response.encoding = 'utf-8'
             
-            # 保存HTML文件
+            # 保存HTML文件（仅正文和标题）
             html_file = article_dir / f"{safe_title}.html"
+            main_html = self.extract_main_content(response.text, url, title)
             with open(html_file, 'w', encoding='utf-8') as f:
-                f.write(response.text)
+                f.write(main_html)
             
             # 解析HTML查找附件
             soup = BeautifulSoup(response.text, 'html.parser')
