@@ -87,12 +87,26 @@ if __name__ == "__main__":
     # save_list_to_pickle(new_data_list)
 
     all_link = dump_pickle("link.pkl")
-    print(all_link)
+    # print(all_link)
+
+    # try:
+        # del all_link["202504"]
+
+    cnt=0
     for k,v in enumerate(all_link):
-        print(v["date"])
+        # print(v["date"])
+        # if "202503" in v["date"]:
+            # cnt+=1
+            # print(v["date"],len(v["date"]),v["href"])
+        # if v["href"].startswith(r"https://www.stats.gov.cn/sj/zxfb"):
+            # print("ready to del")
+        pass
+    # print(len(all_link))
+    # print(cnt)
     all_data = dump_pickle("data.pkl")
     # del all_data["202401"]
     # del all_data["202501"]
     # save_dict_to_pickle(all_data)
     # print(all_data["202401"])
     # print(all_data)
+    save_list_to_pickle("link.pkl")

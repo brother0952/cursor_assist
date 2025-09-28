@@ -69,6 +69,8 @@ def process_photos(directory):
 
 if __name__ == "__main__":
     # 设置命令行参数
+    # usage: python process_dji_photos.py [directory]
+    # python .\process_dji_photos.py "D:\git\py_process\dji_pic_remv_dup\test_dir"
     parser = argparse.ArgumentParser(description='处理DJI图片重复文件')
     parser.add_argument('directory', nargs='?', default=os.getcwd(),
                       help='指定要处理的图片目录路径，默认为当前目录')

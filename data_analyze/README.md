@@ -112,4 +112,11 @@ downloaded_articles/
 
 
 
-https://n8n-adqdubfw.ap-southeast-1.clawcloudrun.com/webhook-test/06935026-bc8d-412f-a615-2fd052796171
+
+
+
+
+
+这种方式不用爬，直接请求数据
+pip install cn-stats
+https://data.stats.gov.cn/easyquery.htm
