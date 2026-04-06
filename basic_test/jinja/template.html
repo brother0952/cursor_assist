@@ -1,0 +1,40 @@
+    {% set keys = data.keys()|list %}
+    {% set group_opened = namespace(opened=false) %}
+    
+    {% for i in range(keys|length) -%}
+        {% set key = keys[i] %}
+        {% set value = data[key] %}
+        
+        {% if key.startswith('group_') and value is none -%}
+            <!-- group开始或结束标记 -->
+            {% if not group_opened.opened %}
+                {% set group_opened.opened = true %}
+            {% else %}
+                {% set group_opened.opened = false %}
+            {% endif %}
+            <div class="item">
+                <strong>{{ key }}:</strong> [[{{ value }}]]
+            </div>
+        {% elif key == 'group' and value is none -%}
+            <!-- 当group的值为None时，切换group状态 -->
+            {% if not group_opened.opened %}
+                {% set group_opened.opened = true %}
+            {% else %}
+                {% set group_opened.opened = false %}
+            {% endif %}
+            <div class="item">
+                <strong>{{ key }}:</strong> [[{{ value }}]]
+            </div>
+        {% else -%}
+            <!-- 普通键值对 -->
+            {% if group_opened.opened -%}
+                <div class="item">
+                    <strong>{{ key }}:</strong> {{"{"}}{{ value }}{{"}}"}}
+                </div>
+            {% else -%}
+                <div class="item">
+                    <strong>{{ key }}:</strong> [[{{ value }}]]
+                </div>
+            {% endif -%}
+        {% endif %}
+    {% endfor -%}

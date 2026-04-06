@@ -1,0 +1,141 @@
+{
+  "form_title": "Configuration Tool",
+  "form_description": "Configure your application settings using this form",
+  "sections": [
+    {
+      "section_id": "basic_info",
+      "section_title": "Basic Information",
+      "fields": [
+        {
+          "field_id": "project_name",
+          "field_type": "text",
+          "label": "Project Name",
+          "placeholder": "Enter project name",
+          "required": true,
+          "help_text": "The name of your project"
+        },
+        {
+          "field_id": "description",
+          "field_type": "textarea",
+          "label": "Description",
+          "placeholder": "Enter project description",
+          "required": false,
+          "help_text": "A brief description of the project"
+        }
+      ]
+    },
+    {
+      "section_id": "settings",
+      "section_title": "Settings",
+      "fields": [
+        {
+          "field_id": "category",
+          "field_type": "select",
+          "label": "Category",
+          "data_source": "source_1",
+          "required": true,
+          "help_text": "Select a category from the available options"
+        },
+        {
+          "field_id": "role",
+          "field_type": "select",
+          "label": "User Role",
+          "data_source": "source_2",
+          "required": true,
+          "help_text": "Select a user role"
+        },
+        {
+          "field_id": "region",
+          "field_type": "multiselect",
+          "label": "Regions",
+          "data_source": "source_3",
+          "required": false,
+          "help_text": "Select one or more regions"
+        },
+        {
+          "field_id": "priority",
+          "field_type": "number",
+          "label": "Priority Level",
+          "min_value": 1,
+          "max_value": 10,
+          "default_value": 5,
+          "required": true,
+          "help_text": "Set priority level (1-10)"
+        },
+        {
+          "field_id": "budget",
+          "field_type": "number",
+          "label": "Budget",
+          "min_value": 0,
+          "step": 1000,
+          "default_value": 10000,
+          "required": false,
+          "help_text": "Enter the budget amount"
+        },
+        {
+          "field_id": "enabled",
+          "field_type": "checkbox",
+          "label": "Enable Feature",
+          "default_value": true,
+          "required": false,
+          "help_text": "Check to enable this feature"
+        }
+      ]
+    },
+    {
+      "section_id": "advanced",
+      "section_title": "Advanced Configuration",
+      "fields": [
+        {
+          "field_id": "parameters",
+          "field_type": "table",
+          "label": "Custom Parameters",
+          "columns": [
+            {
+              "key": "name",
+              "label": "Parameter Name",
+              "type": "text"
+            },
+            {
+              "key": "value",
+              "label": "Value",
+              "type": "text"
+            },
+            {
+              "key": "type",
+              "label": "Type",
+              "type": "select",
+              "options": ["string", "number", "boolean"]
+            }
+          ],
+          "required": false,
+          "help_text": "Add custom parameters as needed"
+        }
+      ]
+    },
+    {"section_id": "nested_section",
+  "section_title": "Nested Configuration",
+  "fields": [
+    {
+      "field_id": "basic",
+      "field_type": "object",
+      "label": "Basic Settings",
+      "fields": [
+        {
+          "field_id": "output_channel",
+          "field_type": "number",
+          "label": "Output Channel",
+          "default_value": 20
+        },
+        {
+          "field_id": "output_details",
+          "field_type": "multiselect",
+          "label": "Output Details",
+          "data_source": "source_3", 
+          "help_text": "Select output details (e.g., LB, HB, TI)"
+        }
+      ]
+    }
+  ]}
+  ]
+}

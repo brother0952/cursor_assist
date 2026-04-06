@@ -15,8 +15,8 @@ def rename_wechat_photos(directory='.', keep_original=True):
     """
     # Patterns to match WeChat export files with timestamp
     patterns = [
-        re.compile(r'^mmexport(\d{13})\.(jpg|jpeg|png|gif|bmp|webp)$'),
-        re.compile(r'^wx_camera_(\d{13})\.(jpg|jpeg|png|gif|bmp|webp)$')
+        re.compile(r'^mmexport(\d{13})\.(jpg|jpeg|png|gif|bmp|webp|mp4)$'),
+        re.compile(r'^wx_camera_(\d{13})\.(jpg|jpeg|png|gif|bmp|webp|mp4)$')
     ]
     
     # Counter for processed files

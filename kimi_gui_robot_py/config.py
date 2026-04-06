@@ -1,0 +1,1 @@
+API_KEY = "sk-0PnppjKvTYr7uxYOigwfrLOY5xsYPMP6lNhKWKGccXAoFEgq"  # 将实际的API密钥放在这里 

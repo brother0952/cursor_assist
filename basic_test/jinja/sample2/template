@@ -1,0 +1,6 @@
+{% for key, value in data.items() -%}
+    1{% if key == 'special' %}
+******
+    2{% endif %}
+{{ key }}-{{value}}4
+{%- endfor %}

@@ -1,0 +1,62 @@
+{
+  "excel_sources": [
+    {
+      "id": "source_1",
+      "name": "Product Categories",
+      "options": [
+        {
+          "value": "cat_1",
+          "label": "Electronics"
+        },
+        {
+          "value": "cat_2",
+          "label": "Clothing"
+        },
+        {
+          "value": "cat_3",
+          "label": "Home & Garden"
+        }
+      ]
+    },
+    {
+      "id": "source_2",
+      "name": "User Roles",
+      "options": [
+        {
+          "value": "role_admin",
+          "label": "Administrator"
+        },
+        {
+          "value": "role_editor",
+          "label": "Editor"
+        },
+        {
+          "value": "role_viewer",
+          "label": "Viewer"
+        }
+      ]
+    },
+    {
+      "id": "source_3",
+      "name": "Regions",
+      "options": [
+        {
+          "value": "us_east",
+          "label": "US East"
+        },
+        {
+          "value": "us_west",
+          "label": "US West"
+        },
+        {
+          "value": "eu_central",
+          "label": "Europe Central"
+        },
+        {
+          "value": "ap_south",
+          "label": "Asia Pacific South"
+        }
+      ]
+    }
+  ]
+}

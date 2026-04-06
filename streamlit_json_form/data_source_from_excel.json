@@ -1,0 +1,34 @@
+{
+  "excel_sources": [
+    {
+      "id": "source_1",
+      "name": "Product Categories",
+      "file_path": "data/products.xlsx",
+      "sheet_name": "Categories",
+      "columns": {
+        "value": "category_id",
+        "label": "category_name"
+      }
+    },
+    {
+      "id": "source_2",
+      "name": "User Roles",
+      "file_path": "data/users.xlsx",
+      "sheet_name": "Roles",
+      "columns": {
+        "value": "role_id",
+        "label": "role_name"
+      }
+    },
+    {
+      "id": "source_3",
+      "name": "Regions",
+      "file_path": "data/regions.xlsx",
+      "sheet_name": "Sheet1",
+      "columns": {
+        "value": "region_code",
+        "label": "region_name"
+      }
+    }
+  ]
+}

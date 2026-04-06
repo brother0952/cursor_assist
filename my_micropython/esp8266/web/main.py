@@ -7,8 +7,8 @@ import time
 led = machine.Pin(2, machine.Pin.OUT)
 
 # 连接 Wi-Fi
-ssid = '你的SSID'
-password = '你的密码'
+ssid = "HUAWEI-P107NL"      # 修改为你的Wi-Fi名称
+password = "12871034"  # 修改为你的Wi-Fi密码
 
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)

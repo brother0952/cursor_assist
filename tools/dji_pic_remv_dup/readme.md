@@ -5,3 +5,7 @@ dji_fly_20241207_160648_244_1733635521303_photo_optimized.jpg
 
 dji fly会自动优化图片，并重命名，保存在手机。导致导出飞机tf卡的图片时，会重复。
 这个脚本是用来删除重复的图片。保留优化后的照片。以上 243的优化前后图片，需在同一目录
+
+
+
+uv run .\process_dji_photos.py "your path"

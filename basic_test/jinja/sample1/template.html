@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Jinja2 复杂示例</title>
+</head>
+<body>
+    <h1>数据展示</h1>
+    {% for key, value in data.items() %}
+        <!-- 如果上一个键是 divider_before 或当前键是 divider_after，则显示分隔线 -->
+        {% if key == 'divider_before' %}
+            <hr />******
+        {% endif %}
+        
+        <div class="item">
+            <strong>{{ key }}:</strong> {{ value }}
+        </div>
+        
+        <!-- 如果当前键是 divider_after，则在后面显示分隔线 -->
+        {% if key == 'divider_after' %}
+            <hr />******
+        {% endif %}
+    {% endfor %}
+</body>
+</html>
