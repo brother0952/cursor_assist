@@ -223,6 +223,101 @@ def render_table_field(field, value):
     return cleaned_result
 
 
+def render_linked_table_field(field, current_data, data_sources):
+    """Render a table field with dynamic select options linked to another table."""
+    st.subheader(field['label'])
+    if field.get('help_text'):
+        st.caption(field['help_text'])
+    
+    # Get the source table data
+    source_field_id = field.get('link_to_field')
+    source_table_data = current_data.get(source_field_id, []) if current_data else []
+    
+    # Build options from source table
+    value_key = field.get('link_key', 'id')
+    label_key = field.get('link_label_key', 'name')
+    
+    options = []
+    for row in source_table_data:
+        if value_key in row and label_key in row:
+            options.append({
+                'value': str(row[value_key]),
+                'label': str(row[label_key])
+            })
+    
+    if not options:
+        st.warning(f"⚠️ No options available. Please add data to '{source_field_id}' first.")
+        options = [{'value': '', 'label': '(No options available)'}]
+    
+    columns = field['columns']
+    
+    # Initialize or load existing data
+    if current_data and field['field_id'] in current_data and len(current_data[field['field_id']]) > 0:
+        df = pd.DataFrame(current_data[field['field_id']])
+    else:
+        # Create empty DataFrame with correct columns
+        df = pd.DataFrame(columns=[col['key'] for col in columns])
+    
+    # Build column config with dynamic select options
+    column_config = {}
+    for col in columns:
+        if col.get('type') == 'select_linked':
+            # This is a linked select column
+            option_values = [opt['value'] for opt in options]
+            option_labels = [opt['label'] for opt in options]
+            
+            column_config[col['key']] = st.column_config.SelectboxColumn(
+                label=col['label'],
+                options=option_labels,
+                required=field.get('required', False),
+                help=f"Select from {source_field_id}"
+            )
+        elif col.get('type') == 'number':
+            column_config[col['key']] = st.column_config.NumberColumn(
+                label=col['label'],
+                required=field.get('required', False)
+            )
+        else:
+            column_config[col['key']] = st.column_config.TextColumn(
+                label=col['label'],
+                required=field.get('required', False)
+            )
+    
+    # Display editable table
+    edited_df = st.data_editor(
+        df,
+        num_rows="dynamic",
+        use_container_width=True,
+        hide_index=True,
+        column_config=column_config
+    )
+    
+    # Convert back to list of dictionaries
+    result = edited_df.to_dict('records')
+    # Remove NaN values and map labels back to values for select_linked columns
+    cleaned_result = []
+    for row in result:
+        cleaned_row = {}
+        for key, value in row.items():
+            if pd.notna(value):
+                # Check if this is a select_linked column and convert label back to value
+                col_def = next((c for c in columns if c['key'] == key), None)
+                if col_def and col_def.get('type') == 'select_linked':
+                    # Find the corresponding value for this label
+                    option_match = next((opt for opt in options if opt['label'] == value), None)
+                    if option_match:
+                        cleaned_row[key] = option_match['value']
+                    else:
+                        cleaned_row[key] = value
+                else:
+                    cleaned_row[key] = value
+        
+        if cleaned_row:
+            cleaned_result.append(cleaned_row)
+    
+    return cleaned_result
+
+
 def render_object_field(field, current_data, data_sources):
     """Render an object field containing nested fields."""
     field_id = field['field_id']
@@ -251,16 +346,45 @@ def render_object_field(field, current_data, data_sources):
 
 def render_section(section, current_data, data_sources):
     """Render all fields within a section."""
-    # Create columns for better layout
-    cols = st.columns(2)
-    col_idx = 0
+    # Check if this section has linked tables that need special ordering
+    has_linked_tables = any(field.get('field_type') == 'table_linked' for field in section.get('fields', []))
     
-    for field in section.get('fields', []):
-        with cols[col_idx % 2]:
-            result = render_field(field, current_data, data_sources)
-            if result is not None:
-                current_data[field['field_id']] = result
-        col_idx += 1
+    if has_linked_tables:
+        # For sections with linked tables, we need to render them in order and handle dependencies
+        regular_fields = [f for f in section.get('fields', []) if f.get('field_type') != 'table_linked']
+        linked_fields = [f for f in section.get('fields', []) if f.get('field_type') == 'table_linked']
+        
+        # Create columns for better layout
+        cols = st.columns(2)
+        col_idx = 0
+        
+        # First render regular fields (including source tables)
+        for field in regular_fields:
+            with cols[col_idx % 2]:
+                result = render_field(field, current_data, data_sources)
+                if result is not None:
+                    current_data[field['field_id']] = result
+            col_idx += 1
+        
+        # Then render linked tables (they depend on source tables being rendered first)
+        for field in linked_fields:
+            with cols[col_idx % 2]:
+                result = render_field(field, current_data, data_sources)
+                if result is not None:
+                    current_data[field['field_id']] = result
+            col_idx += 1
+    else:
+        # Standard rendering for sections without linked tables
+        # Create columns for better layout
+        cols = st.columns(2)
+        col_idx = 0
+        
+        for field in section.get('fields', []):
+            with cols[col_idx % 2]:
+                result = render_field(field, current_data, data_sources)
+                if result is not None:
+                    current_data[field['field_id']] = result
+            col_idx += 1
 
 
 def render_field(field, current_data, data_sources):
@@ -283,6 +407,8 @@ def render_field(field, current_data, data_sources):
         return render_checkbox_field(field, value)
     elif field_type == 'table':
         return render_table_field(field, value)
+    elif field_type == 'table_linked':
+        return render_linked_table_field(field, current_data, data_sources)
     elif field_type == 'object':
         return render_object_field(field, current_data, data_sources)
     else:
@@ -402,7 +528,7 @@ def main():
         st.write("**Available Data Sources:**")
         for source in data_sources.get('excel_sources', []):
             st.write(f"• **{source['name']}** (ID: {source['id']})")
-            st.write(f"  - File: {source['file_path']}")
+            # st.write(f"  - File: {source['file_path']}")
             st.write(f"  - Sheet: {source.get('sheet_name', 'Default')}")
 
 if __name__ == "__main__":

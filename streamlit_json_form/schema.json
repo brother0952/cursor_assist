@@ -113,6 +113,61 @@
         }
       ]
     },
+    {
+      "section_id": "linked_tables_demo",
+      "section_title": "Linked Tables Demo",
+      "fields": [
+        {
+          "field_id": "table1_categories",
+          "field_type": "table",
+          "label": "Table 1: Categories",
+          "columns": [
+            {
+              "key": "category_id",
+              "label": "Category ID",
+              "type": "text"
+            },
+            {
+              "key": "category_name",
+              "label": "Category Name",
+              "type": "text"
+            }
+          ],
+          "required": false,
+          "help_text": "Define categories here. These will be used in Table 2."
+        },
+        {
+          "field_id": "table2_items",
+          "field_type": "table_linked",
+          "label": "Table 2: Items (Linked to Table 1)",
+          "link_to_field": "table1_categories",
+          "link_key": "category_id",
+          "link_label_key": "category_name",
+          "columns": [
+            {
+              "key": "item_name",
+              "label": "Item Name",
+              "type": "text"
+            },
+            {
+              "key": "category",
+              "label": "Category",
+              "type": "select_linked",
+              "source_field": "table1_categories",
+              "value_key": "category_id",
+              "label_key": "category_name"
+            },
+            {
+              "key": "price",
+              "label": "Price",
+              "type": "number"
+            }
+          ],
+          "required": false,
+          "help_text": "Select items and choose their category from Table 1 options."
+        }
+      ]
+    },
     {"section_id": "nested_section",
   "section_title": "Nested Configuration",
   "fields": [
