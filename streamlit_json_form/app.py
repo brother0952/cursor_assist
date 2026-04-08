@@ -200,7 +200,7 @@ def render_table_field(field, value):
     edited_df = st.data_editor(
         df,
         num_rows="dynamic",
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         column_config={
             col['key']: st.column_config.Column(
@@ -251,21 +251,68 @@ def render_linked_table_field(field, current_data, data_sources):
     
     columns = field['columns']
     
-    # Initialize or load existing data
-    if current_data and field['field_id'] in current_data and len(current_data[field['field_id']]) > 0:
-        df = pd.DataFrame(current_data[field['field_id']])
-    else:
-        # Create empty DataFrame with correct columns
-        df = pd.DataFrame(columns=[col['key'] for col in columns])
+    # Use session_state to persist table data across reruns
+    table_state_key = f"linked_table_{field['field_id']}"
+    # Use a separate key for storing raw values (not labels)
+    raw_data_key = f"linked_table_raw_{field['field_id']}"
+    
+    # Initialize or load existing raw data first
+    if raw_data_key not in st.session_state:
+        # First time loading or state was cleared - load from current_data
+        if current_data and field['field_id'] in current_data and len(current_data[field['field_id']]) > 0:
+            st.session_state[raw_data_key] = current_data[field['field_id']]
+        else:
+            st.session_state[raw_data_key] = []
+            
+    raw_data = st.session_state[raw_data_key]
+    
+    # Clean up invalid selections in raw_data
+    valid_values = [opt['value'] for opt in options]
+    select_linked_cols = [col['key'] for col in columns if col.get('type') == 'select_linked']
+    
+    needs_cleanup = False
+    if raw_data and select_linked_cols:
+        cleaned_raw_data = []
+        for row in raw_data:
+            cleaned_row = row.copy()
+            for col_key in select_linked_cols:
+                if col_key in row:
+                    cell_value = str(row[col_key])
+                    if cell_value not in valid_values and cell_value != '':
+                        cleaned_row[col_key] = None
+                        needs_cleanup = True
+            cleaned_raw_data.append(cleaned_row)
+        
+        if needs_cleanup:
+            st.session_state[raw_data_key] = cleaned_raw_data
+            raw_data = cleaned_raw_data
+    
+    # Rebuild display DataFrame from raw_data on EVERY render
+    # This ensures the display is always in sync with raw values
+    display_data = []
+    for row in raw_data:
+        display_row = {}
+        for col in columns:
+            col_key = col['key']
+            if col.get('type') == 'select_linked':
+                # Convert value to label for display
+                val = row.get(col_key, '')
+                if val:
+                    option_match = next((opt for opt in options if opt['value'] == str(val)), None)
+                    display_row[col_key] = option_match['label'] if option_match else ''
+                else:
+                    display_row[col_key] = ''
+            else:
+                display_row[col_key] = row.get(col_key, '')
+        display_data.append(display_row)
+    
+    df = pd.DataFrame(display_data, columns=[col['key'] for col in columns]) if display_data else pd.DataFrame(columns=[col['key'] for col in columns])
     
     # Build column config with dynamic select options
     column_config = {}
     for col in columns:
         if col.get('type') == 'select_linked':
-            # This is a linked select column
-            option_values = [opt['value'] for opt in options]
             option_labels = [opt['label'] for opt in options]
-            
             column_config[col['key']] = st.column_config.SelectboxColumn(
                 label=col['label'],
                 options=option_labels,
@@ -287,35 +334,40 @@ def render_linked_table_field(field, current_data, data_sources):
     edited_df = st.data_editor(
         df,
         num_rows="dynamic",
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
-        column_config=column_config
+        column_config=column_config,
+        key=f"editor_{field['field_id']}"
     )
     
-    # Convert back to list of dictionaries
+    # Process the edited data: convert labels back to values
     result = edited_df.to_dict('records')
-    # Remove NaN values and map labels back to values for select_linked columns
-    cleaned_result = []
+    
+    # Build new raw_data from edited display data
+    new_raw_data = []
     for row in result:
         cleaned_row = {}
-        for key, value in row.items():
-            if pd.notna(value):
-                # Check if this is a select_linked column and convert label back to value
-                col_def = next((c for c in columns if c['key'] == key), None)
+        has_data = False
+        for col_key, value in row.items():
+            if pd.notna(value) and str(value).strip() != '':
+                col_def = next((c for c in columns if c['key'] == col_key), None)
                 if col_def and col_def.get('type') == 'select_linked':
-                    # Find the corresponding value for this label
-                    option_match = next((opt for opt in options if opt['label'] == value), None)
+                    # The value from data_editor is the label, convert to value
+                    option_match = next((opt for opt in options if opt['label'] == str(value)), None)
                     if option_match:
-                        cleaned_row[key] = option_match['value']
-                    else:
-                        cleaned_row[key] = value
+                        cleaned_row[col_key] = option_match['value']
+                        has_data = True
                 else:
-                    cleaned_row[key] = value
+                    cleaned_row[col_key] = value
+                    has_data = True
         
-        if cleaned_row:
-            cleaned_result.append(cleaned_row)
+        if has_data:
+            new_raw_data.append(cleaned_row)
     
-    return cleaned_result
+    # Update session_state with the latest raw data
+    st.session_state[raw_data_key] = new_raw_data
+    
+    return new_raw_data
 
 
 def render_object_field(field, current_data, data_sources):
@@ -485,6 +537,14 @@ def main():
     
     # Handle save
     if submit_button:
+        # Update current_data with latest table data from session_state
+        for section in schema.get('sections', []):
+            for field in section.get('fields', []):
+                if field.get('field_type') == 'table_linked':
+                    raw_data_key = f"linked_table_raw_{field['field_id']}"
+                    if raw_data_key in st.session_state:
+                        current_data[field['field_id']] = st.session_state[raw_data_key]
+        
         # Validate required fields
         errors = validate_required_fields(schema, current_data)
         
